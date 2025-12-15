@@ -1,0 +1,64 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.buildlog/
+.history
+.svn/
+
+# IntelliJ / Android Studio / VS Code
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+out/
+
+# Flutter / Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+app.dill
+app.dill.incremental
+flutter_01.log
+
+# Android-specific
+android/gradle/wrapper/gradle-wrapper.properties
+android/local.properties
+android/captures/
+android/gradlew
+android/gradlew.bat
+android/.gradle/
+# Keystores (Llaves de firma para la Play Store - ¡NUNCA SUBIR!)
+*.jks
+*.keystore
+key.properties
+
+# iOS-specific
+ios/Flutter/App.framework
+ios/Flutter/Flutter.framework
+ios/Flutter/Generated.xcconfig
+ios/Flutter/app.flx
+ios/Flutter/app.zip
+ios/Flutter/flutter_assets/
+ios/Podfile.lock
+ios/Pods/
+ios/Runner/GeneratedPluginRegistrant.h
+ios/Runner/GeneratedPluginRegistrant.m
+ios/.generated/
+
+# --- FIREBASE & SEGURIDAD (¡IMPORTANTE!) ---
+# Ignoramos estos archivos para no subir nuestras llaves privadas a GitHub
+android/app/google-services.json
+ios/Runner/GoogleService-Info.plist
+lib/firebase_options.dart
+
+# Mac specific
+.DS_Store

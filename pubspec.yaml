@@ -1,0 +1,54 @@
+name: clarity_software
+description: "A SaaS Flutter project for client-business management."
+publish_to: 'none'
+
+version: 1.1.0+2
+
+environment:
+  sdk: ^3.9.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # --- UI & Diseño ---
+  font_awesome_flutter: ^10.8.0
+  cupertino_icons: ^1.0.8
+  google_fonts: ^6.2.1
+  intl: ^0.20.2
+
+  # --- Firebase & Backend (Versiones Correctas) ---
+  firebase_core: ^3.10.1
+  firebase_auth: ^5.4.1
+  cloud_firestore: ^5.6.2
+  firebase_storage: ^12.4.1  # <-- ¡Esta es la clave!
+  
+  # --- Google Ecosystem ---
+  google_sign_in: ^6.2.2
+  googleapis: ^13.2.0
+  googleapis_auth: ^1.6.0
+  extension_google_sign_in_as_googleapis_auth: ^2.0.12
+
+  # --- Utilidades ---
+  shared_preferences: ^2.5.1
+  file_picker: ^8.1.7
+  open_file: ^3.5.0
+  path_provider: ^2.1.5
+  
+  # --- Firma Digital ---
+  signature: ^5.5.0
+
+  # --- Gráficos ---
+  fl_chart: ^0.70.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/logos/
+    # Asegúrate de crear esta carpeta si vamos a tener iconos de categorías de documentos
+    # - assets/icons/
