@@ -30,6 +30,19 @@ class ProjectService {
     });
   }
 
+  // --- NUEVO: ESCUCHAR UN SOLO PROYECTO (Para ProjectDetailsScreen) ---
+  Stream<Project> getProjectStream(String projectId) {
+    return _db.collection(_collection).doc(projectId).snapshots().map((doc) {
+      if (doc.exists && doc.data() != null) {
+        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+        data['id'] = doc.id;
+        return Project.fromJson(data);
+      } else {
+        throw Exception("Proyecto no encontrado");
+      }
+    });
+  }
+
   // --- GUARDAR O ACTUALIZAR PROYECTO ---
   Future<void> saveProject(Project project) async {
     final docRef = _db

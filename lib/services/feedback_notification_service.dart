@@ -1,58 +1,20 @@
 // lib/services/feedback_notification_service.dart
-import 'dart:convert';
-import 'dart:math';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:clarity_software/models/feedback_message.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class FeedbackNotificationService {
   static final FeedbackNotificationService _instance =
       FeedbackNotificationService._internal();
   factory FeedbackNotificationService() => _instance;
+  FeedbackNotificationService._internal();
 
-  late List<FeedbackMessage> _feedbackMessages;
-  late SharedPreferences _prefs;
+  final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  static const String _feedbackKey = 'clarity_feedback_data';
+  // Ya no necesitamos init() con SharedPreferences, pero lo dejamos vacío
+  // por compatibilidad con el main.dart existente.
+  Future<void> init() async {}
 
-  FeedbackNotificationService._internal() {
-    _feedbackMessages = [];
-  }
-
-  // Debe llamarse en main.dart ANTES de runApp()
-  Future<void> init() async {
-    _prefs = await SharedPreferences.getInstance();
-    await _loadFeedbackFromPrefs();
-  }
-
-  // Cargar feedback guardado
-  Future<void> _loadFeedbackFromPrefs() async {
-    final String? feedbackString = _prefs.getString(_feedbackKey);
-    if (feedbackString != null) {
-      try {
-        final List<dynamic> feedbackJson = jsonDecode(feedbackString);
-        _feedbackMessages = feedbackJson
-            .map((json) => FeedbackMessage.fromJson(json))
-            .toList();
-      } catch (e) {
-        _feedbackMessages = []; // Iniciar vacío si hay error
-      }
-    } else {
-      _feedbackMessages = []; // Iniciar vacío si no hay nada
-    }
-  }
-
-  // Guardar feedback
-  Future<void> _saveFeedbackToPrefs() async {
-    final List<Map<String, dynamic>> feedbackJson = _feedbackMessages
-        .map((f) => f.toJson())
-        .toList();
-    final String feedbackString = jsonEncode(feedbackJson);
-    await _prefs.setString(_feedbackKey, feedbackString);
-  }
-
-  // --- MÉTODOS PÚBLICOS ---
-
-  /// Añade un nuevo mensaje de feedback y lo guarda
+  /// Añade un nuevo mensaje de feedback a la subcolección del proyecto
   Future<void> addFeedback({
     required String projectId,
     required String milestoneTitle,
@@ -61,60 +23,90 @@ class FeedbackNotificationService {
     required String author,
   }) async {
     final newMessage = FeedbackMessage(
-      id: 'f_${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(1000)}',
+      id: '', // Firestore generará el ID
       projectId: projectId,
       milestoneTitle: milestoneTitle,
       message: message,
       type: type,
       timestamp: DateTime.now(),
       author: author,
-      isRead: false, // El feedback nuevo nunca está leído
+      isRead: false,
     );
 
-    _feedbackMessages.add(newMessage);
-    await _saveFeedbackToPrefs();
+    await _db
+        .collection('projects')
+        .doc(projectId)
+        .collection('feedback')
+        .add(newMessage.toJson());
   }
 
-  /// Obtiene todos los mensajes para un hito específico
-  List<FeedbackMessage> getFeedbackForMilestone(
+  /// STREAM: Escucha los mensajes de un hito en tiempo real
+  Stream<List<FeedbackMessage>> getFeedbackStream(
     String projectId,
     String milestoneTitle,
   ) {
-    return _feedbackMessages
-        .where(
-          (f) => f.projectId == projectId && f.milestoneTitle == milestoneTitle,
-        )
-        .toList()
-      ..sort(
-        (a, b) => b.timestamp.compareTo(a.timestamp),
-      ); // Más nuevos primero
+    return _db
+        .collection('projects')
+        .doc(projectId)
+        .collection('feedback')
+        .where('milestoneTitle', isEqualTo: milestoneTitle)
+        // Ordenamos por fecha descendente (más nuevos primero)
+        // Nota: Si Firebase pide crear un índice, verás el link en la consola de debug
+        // .orderBy('timestamp', descending: true)
+        .snapshots()
+        .map((snapshot) {
+          final msgs = snapshot.docs.map((doc) {
+            final data = doc.data();
+            data['id'] = doc.id; // Asegurar ID
+            return FeedbackMessage.fromJson(data);
+          }).toList();
+
+          // Ordenamiento manual por si falta el índice compuesto en Firestore
+          msgs.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+          return msgs;
+        });
   }
 
-  /// Obtiene los mensajes NO LEÍDOS por el cliente para un proyecto
-  List<FeedbackMessage> getUnreadFeedbackForProject(String projectId) {
-    return _feedbackMessages
+  /// STREAM: Escucha mensajes NO LEÍDOS para el proyecto (Iconos de notificación)
+  Stream<List<FeedbackMessage>> getUnreadFeedbackStream(String projectId) {
+    return _db
+        .collection('projects')
+        .doc(projectId)
+        .collection('feedback')
+        .where('isRead', isEqualTo: false)
         .where(
-          (f) => f.projectId == projectId && !f.isRead && f.author != 'Cliente',
-        ) // Asumimos que el cliente no lee sus propios msjs
-        .toList();
+          'author',
+          isNotEqualTo: 'Cliente',
+        ) // Solo lo que escribe el Admin
+        .snapshots()
+        .map((snapshot) {
+          return snapshot.docs.map((doc) {
+            final data = doc.data();
+            data['id'] = doc.id;
+            return FeedbackMessage.fromJson(data);
+          }).toList();
+        });
   }
 
-  /// Marca todos los mensajes de un hito como leídos
+  /// Marca como leídos los mensajes de un hito (Batch update)
   Future<void> markMilestoneFeedbackAsRead(
     String projectId,
     String milestoneTitle,
   ) async {
-    bool changed = false;
-    for (var msg in _feedbackMessages) {
-      if (msg.projectId == projectId &&
-          msg.milestoneTitle == milestoneTitle &&
-          !msg.isRead) {
-        msg.isRead = true;
-        changed = true;
+    final snapshot = await _db
+        .collection('projects')
+        .doc(projectId)
+        .collection('feedback')
+        .where('milestoneTitle', isEqualTo: milestoneTitle)
+        .where('isRead', isEqualTo: false)
+        .get();
+
+    if (snapshot.docs.isNotEmpty) {
+      final batch = _db.batch();
+      for (var doc in snapshot.docs) {
+        batch.update(doc.reference, {'isRead': true});
       }
-    }
-    if (changed) {
-      await _saveFeedbackToPrefs();
+      await batch.commit();
     }
   }
 }

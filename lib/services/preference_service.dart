@@ -1,41 +1,60 @@
 // lib/services/preference_service.dart
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:clarity_software/models/dashboard_config.dart';
+import 'package:clarity_software/services/auth_service.dart';
 
-import 'dart:async';
-import 'package:flutter/material.dart'; // <-- CORRECCIÓN: Import faltante
-
-// Define las vistas que el usuario puede elegir
-enum ProjectViewPreference { overview, list }
-
-// Un servicio Singleton para gestionar las preferencias del usuario.
-// En una app real, esto usaría SharedPreferences o una base de datos.
-// Por ahora, solo lo mantendrá en memoria durante la sesión.
 class PreferenceService {
-  // --- Singleton Setup ---
   static final PreferenceService _instance = PreferenceService._internal();
   factory PreferenceService() => _instance;
   PreferenceService._internal();
 
-  // --- Preferencia de Vista ---
-  ProjectViewPreference _currentViewPreference =
-      ProjectViewPreference.overview; // Valor por defecto
+  final FirebaseFirestore _db = FirebaseFirestore.instance;
+  final AuthService _authService = AuthService();
 
-  // Stream para notificar a los widgets (como la pantalla de login) si la preferencia cambia
-  final StreamController<ProjectViewPreference> _preferenceController =
-      StreamController<ProjectViewPreference>.broadcast();
+  // Referencia al documento de configuración del usuario actual
+  DocumentReference get _configRef {
+    final user = _authService.currentUser;
+    if (user == null) throw Exception('No user logged in');
+    return _db
+        .collection('users')
+        .doc(user.id)
+        .collection('settings')
+        .doc('dashboard_config');
+  }
 
-  // Obtener la preferencia actual
-  ProjectViewPreference get currentPreference => _currentViewPreference;
+  // --- STREAM: Escuchar cambios en tiempo real ---
+  Stream<DashboardConfig> getDashboardConfigStream() {
+    try {
+      final user = _authService.currentUser;
+      if (user == null) return Stream.value(DashboardConfig());
 
-  // Obtener el stream para escuchar cambios
-  Stream<ProjectViewPreference> get preferenceStream =>
-      _preferenceController.stream;
+      return _db
+          .collection('users')
+          .doc(user.id)
+          .collection('settings')
+          .doc('dashboard_config')
+          .snapshots()
+          .map((snapshot) {
+            if (snapshot.exists && snapshot.data() != null) {
+              return DashboardConfig.fromJson(
+                snapshot.data() as Map<String, dynamic>,
+              );
+            }
+            return DashboardConfig(); // Configuración por defecto
+          });
+    } catch (e) {
+      print('Error en PreferenceService stream: $e');
+      return Stream.value(DashboardConfig());
+    }
+  }
 
-  // Guardar la preferencia y notificar a los oyentes
-  void saveViewPreference(ProjectViewPreference preference) {
-    _currentViewPreference = preference;
-    _preferenceController.add(preference);
-    debugPrint(
-      "Preferencia guardada: $preference",
-    ); // <-- CORRECCIÓN: 'P' minúscula
+  // --- GUARDAR CONFIGURACIÓN ---
+  Future<void> saveDashboardConfig(DashboardConfig config) async {
+    try {
+      await _configRef.set(config.toJson());
+    } catch (e) {
+      print('Error guardando preferencias: $e');
+      rethrow;
+    }
   }
 }

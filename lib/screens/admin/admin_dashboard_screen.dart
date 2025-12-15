@@ -1,10 +1,12 @@
 // lib/screens/admin/admin_dashboard_screen.dart
+import 'dart:ui';
 import 'package:clarity_software/models/client_user.dart';
 import 'package:clarity_software/screens/admin/client_editor_dialog.dart';
 import 'package:clarity_software/screens/admin/admin_project_list_screen.dart';
-import 'package:clarity_software/services/mock_api_service.dart';
+import 'package:clarity_software/services/user_service.dart';
 import 'package:clarity_software/theme/app_colors.dart';
 import 'package:clarity_software/widgets/global_menu.dart';
+import 'package:clarity_software/widgets/neon_card.dart'; // Importar NeonCard
 import 'package:flutter/material.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
@@ -15,22 +17,8 @@ class AdminDashboardScreen extends StatefulWidget {
 }
 
 class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
-  final MockApiService _apiService = MockApiService();
-  late List<ClientUser> _clients;
+  final UserService _userService = UserService();
 
-  @override
-  void initState() {
-    super.initState();
-    _loadClients();
-  }
-
-  void _loadClients() {
-    setState(() {
-      _clients = _apiService.getClients();
-    });
-  }
-
-  // Navega a la lista de proyectos de un cliente
   void _navigateToClientProjects(ClientUser client) {
     Navigator.push(
       context,
@@ -40,7 +28,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     );
   }
 
-  // Muestra el popup para crear o editar un cliente
   void _showClientDialog([ClientUser? client]) async {
     final result = await showDialog<ClientUser>(
       context: context,
@@ -48,44 +35,172 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     );
 
     if (result != null) {
-      await _apiService.saveClient(result);
-      _loadClients();
+      await _userService.saveUser(result);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    const double appBarHeight = 65.0;
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Panel de Clientes'),
-        actions: const [GlobalAppBarMenu(currentScreen: AppScreen.admin)],
-      ),
-      body: ListView.builder(
-        itemCount: _clients.length,
-        itemBuilder: (context, index) {
-          final client = _clients[index];
-          return ListTile(
-            leading: const Icon(
-              Icons.person_outline,
-              color: AppColors.cyberBlue,
-            ),
-            title: Text(client.name),
-            subtitle: Text(client.email),
-            trailing: IconButton(
-              icon: const Icon(
-                Icons.edit_outlined,
-                color: AppColors.grey,
-                size: 20,
+      extendBodyBehindAppBar: true,
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(appBarHeight),
+        child: ClipRRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+            child: Container(
+              color: theme.appBarTheme.backgroundColor,
+              child: SafeArea(
+                child: Stack(
+                  children: [
+                    const Align(
+                      alignment: Alignment(0.0, 0.2),
+                      child: Text(
+                        'Panel de Control',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                    const Align(
+                      alignment: Alignment(1.0, 0.2),
+                      child: GlobalAppBarMenu(currentScreen: AppScreen.admin),
+                    ),
+                  ],
+                ),
               ),
-              onPressed: () => _showClientDialog(client),
             ),
-            onTap: () => _navigateToClientProjects(client),
+          ),
+        ),
+      ),
+      body: StreamBuilder<List<ClientUser>>(
+        stream: _userService.getClientsStream(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(
+              child: CircularProgressIndicator(color: AppColors.cyberBlue),
+            );
+          }
+
+          if (snapshot.hasError) {
+            return Center(
+              child: Text(
+                'Error: ${snapshot.error}',
+                style: const TextStyle(color: Colors.white),
+              ),
+            );
+          }
+
+          final clients = snapshot.data ?? [];
+
+          if (clients.isEmpty) {
+            return const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.people_outline, size: 60, color: AppColors.grey),
+                  SizedBox(height: 20),
+                  Text(
+                    'No hay clientes registrados.',
+                    style: TextStyle(color: AppColors.secondaryText),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          return ListView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            itemCount: clients.length,
+            itemBuilder: (context, index) {
+              final client = clients[index];
+              // El primer item necesita un padding superior extra por el AppBar transparente
+              final double topPadding = index == 0 ? appBarHeight + 20 : 0;
+
+              return Padding(
+                padding: EdgeInsets.fromLTRB(0, topPadding, 0, 16.0),
+                child: GestureDetector(
+                  onTap: () => _navigateToClientProjects(client),
+                  child: NeonCard(
+                    glowColor: AppColors.cyberBlue.withValues(alpha: 0.4),
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        // Avatar / Icono
+                        Container(
+                          width: 50,
+                          height: 50,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: AppColors.cyberBlue.withValues(alpha: 0.1),
+                            border: Border.all(color: AppColors.cyberBlue),
+                          ),
+                          child: client.photoUrl.isNotEmpty
+                              ? ClipOval(
+                                  child: Image.network(
+                                    client.photoUrl,
+                                    fit: BoxFit.cover,
+                                  ),
+                                )
+                              : const Icon(
+                                  Icons.person,
+                                  color: AppColors.cyberBlue,
+                                ),
+                        ),
+                        const SizedBox(width: 16),
+                        // Info Texto
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                client.name,
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                client.email,
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  color: AppColors.secondaryText,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        // Botón Editar
+                        IconButton(
+                          icon: const Icon(
+                            Icons.edit_outlined,
+                            color: AppColors.grey,
+                          ),
+                          onPressed: () => _showClientDialog(client),
+                        ),
+                        const Icon(
+                          Icons.chevron_right,
+                          color: AppColors.cyberBlue,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
           );
         },
       ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: AppColors.accentMagenta,
-        child: const Icon(Icons.person_add_alt_1),
+        child: const Icon(Icons.person_add_alt_1, color: Colors.white),
         onPressed: () => _showClientDialog(),
       ),
     );

@@ -7,35 +7,33 @@ import 'package:clarity_software/widgets/kanban_board.dart';
 import 'package:clarity_software/widgets/neon_card.dart';
 import 'package:flutter/material.dart';
 import 'package:clarity_software/widgets/global_menu.dart';
-// --- INICIO DE CAMBIOS ---
-// Importamos el modelo de Hito para buscar la fase
 import 'package:clarity_software/models/milestone.dart';
-// --- FIN DE CAMBIOS ---
+import 'package:clarity_software/services/project_service.dart';
+// --- NUEVO IMPORT ---
+import 'package:clarity_software/screens/client/documents_screen.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 class ProjectDetailsScreen extends StatefulWidget {
-  // --- INICIO DE CAMBIOS ---
-  // Añadimos el nuevo parámetro
   final String? highlightMilestoneTitle;
-  // --- FIN DE CAMBIOS ---
+  final Project project;
+
   const ProjectDetailsScreen({
     super.key,
     required this.project,
-    this.highlightMilestoneTitle, // <--
+    this.highlightMilestoneTitle,
   });
-  final Project project;
 
   @override
   State<ProjectDetailsScreen> createState() => _ProjectDetailsScreenState();
 }
 
 class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
+  final ProjectService _projectService = ProjectService();
+
   late PageController _titlePageController;
   late PageController _boardPageController;
-  // --- INICIO DE CAMBIOS ---
-  // Controllers para el auto-scroll
   final ScrollController _scrollController = ScrollController();
   final GlobalKey _kanbanKey = GlobalKey();
-  // --- FIN DE CAMBIOS ---
 
   static const int _kanbanInitialPage = 5000;
   int _currentPageIndex = 0;
@@ -57,7 +55,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
     );
     _boardPageController = PageController(initialPage: _kanbanInitialPage);
 
-    _currentPageIndex = _kanbanInitialPage % _columnTitles.length; // = 0
+    _currentPageIndex = _kanbanInitialPage % _columnTitles.length;
 
     _boardPageController.addListener(() {
       if (_titlePageController.page != _boardPageController.page) {
@@ -71,42 +69,29 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
       }
     });
 
-    // --- INICIO DE CAMBIOS ---
-    // Registramos la función de "highlight" para que se ejecute
-    // después de que la pantalla se haya construido
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _handleHighlight();
     });
-    // --- FIN DE CAMBIOS ---
   }
 
   @override
   void dispose() {
     _titlePageController.dispose();
     _boardPageController.dispose();
-    _scrollController.dispose(); // <-- Dispose
+    _scrollController.dispose();
     super.dispose();
   }
 
-  // --- INICIO DE NUEVO MÉTODO ---
   void _handleHighlight() {
     if (widget.highlightMilestoneTitle == null) return;
-
     try {
-      // 1. Encontrar el hito y su fase
       final milestoneToFind = widget.project.milestones.firstWhere(
         (m) => m.title == widget.highlightMilestoneTitle,
       );
       final faseName = getFaseName(milestoneToFind.fase);
-
-      // 2. Encontrar el índice de la página (columna)
       int targetRealIndex = _columnTitles.indexOf(faseName);
-      if (targetRealIndex == -1) return; // No se encontró la fase
-
-      // 3. Animar el PageView (Kanban) a esa fase
+      if (targetRealIndex == -1) return;
       _scrollToPage(targetRealIndex);
-
-      // 4. Animar el ListView (pantalla) hasta el tablero Kanban
       final kanbanContext = _kanbanKey.currentContext;
       if (kanbanContext != null) {
         Scrollable.ensureVisible(
@@ -116,13 +101,11 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
         );
       }
     } catch (e) {
-      // No hacer nada si el hito no se encuentra (raro, pero seguro)
+      // Ignorar si no encuentra hito
     }
   }
-  // --- FIN DE NUEVO MÉTODO ---
 
   void _scrollToPage(int pageIndex) {
-    // Calculamos la página "infinita" más cercana
     final int currentPage = _boardPageController.page!.round();
     final int currentRealIndex = currentPage % _columnTitles.length;
     final int targetRealIndex = pageIndex % _columnTitles.length;
@@ -215,138 +198,190 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
           ),
         ),
       ),
-      // --- INICIO DE CAMBIOS: Añadimos el ScrollController ---
-      body: ListView(
-        controller: _scrollController,
-        padding: EdgeInsets.zero,
-        // --- FIN DE CAMBIOS ---
-        children: [
-          const SizedBox(height: appBarHeight),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 55, 16, 0),
-            child: NeonCard(
-              glowColor: AppColors.tonalBlue,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    widget.project.name,
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.cyberBlue,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    widget.project.description,
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodyMedium?.copyWith(fontSize: 15),
-                  ),
-                  const SizedBox(height: 20),
-                  Column(
+      body: StreamBuilder<Project>(
+        stream: _projectService.getProjectStream(widget.project.id),
+        initialData: widget.project,
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return Center(
+              child: Text(
+                'Error: ${snapshot.error}',
+                style: const TextStyle(color: Colors.white),
+              ),
+            );
+          }
+
+          final project = snapshot.data ?? widget.project;
+
+          return ListView(
+            controller: _scrollController,
+            padding: EdgeInsets.zero,
+            children: [
+              const SizedBox(height: appBarHeight),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 55, 16, 0),
+                child: NeonCard(
+                  glowColor: AppColors.tonalBlue,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      InfoBlock(
-                        icon: Icons.flag_outlined,
-                        label: 'ESTADO',
-                        value:
-                            '${widget.project.status} (${(widget.project.overallProgress * 100).toStringAsFixed(0)}%)',
-                        glowColor: AppColors.neonYellow,
+                      Text(
+                        project.name,
+                        style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.cyberBlue,
+                        ),
                       ),
                       const SizedBox(height: 12),
-                      InfoBlock(
-                        icon: Icons.attach_money_outlined,
-                        label: 'PRESUPUESTO',
-                        value: '\$${widget.project.budget}',
-                        glowColor: AppColors.neonMoneyGreen,
+                      Text(
+                        project.description,
+                        style: Theme.of(
+                          context,
+                        ).textTheme.bodyMedium?.copyWith(fontSize: 15),
                       ),
-                      const SizedBox(height: 12),
-                      InfoBlock(
-                        icon: Icons.people_outline,
-                        label: 'EQUIPO',
-                        value: widget.project.team.join('\n'),
-                        glowColor: AppColors.neonPink,
-                      ),
-                      const SizedBox(height: 12),
-                      InfoBlock(
-                        icon: Icons.code_outlined,
-                        label: 'TECNOLOGÍAS',
-                        value: widget.project.technologies.join('\n'),
-                        glowColor: AppColors.cyberBlue,
+                      const SizedBox(height: 20),
+                      Column(
+                        children: [
+                          InfoBlock(
+                            icon: Icons.flag_outlined,
+                            label: 'ESTADO',
+                            value:
+                                '${project.status} (${(project.overallProgress * 100).toStringAsFixed(0)}%)',
+                            glowColor: AppColors.neonYellow,
+                          ),
+                          const SizedBox(height: 12),
+                          InfoBlock(
+                            icon: Icons.attach_money_outlined,
+                            label: 'PRESUPUESTO',
+                            value: '\$${project.budget}',
+                            glowColor: AppColors.neonMoneyGreen,
+                          ),
+                          const SizedBox(height: 12),
+                          InfoBlock(
+                            icon: Icons.people_outline,
+                            label: 'EQUIPO',
+                            value: project.team.join('\n'),
+                            glowColor: AppColors.neonPink,
+                          ),
+                          const SizedBox(height: 12),
+                          InfoBlock(
+                            icon: Icons.code_outlined,
+                            label: 'TECNOLOGÍAS',
+                            value: project.technologies.join('\n'),
+                            glowColor: AppColors.cyberBlue,
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                ],
+                ),
               ),
-            ),
-          ),
-          SizedBox(
-            height: 60,
-            child: PageView.builder(
-              controller: _titlePageController,
-              itemCount: 10000, // Infinito
-              onPageChanged: (int index) {
-                final int realIndex = index % _columnTitles.length;
-                if (realIndex != _currentPageIndex) {
-                  setState(() {
-                    _currentPageIndex = realIndex;
-                  });
-                }
-              },
-              itemBuilder: (context, index) {
-                final int realIndex = index % _columnTitles.length;
-                final bool isSelected = _currentPageIndex == realIndex;
-                final title = _columnTitles[realIndex];
-                final color = _getBorderColor(title);
 
-                return InkWell(
-                  onTap: () {
-                    _scrollToPage(index);
-                  },
-                  child: Center(
-                    child: AnimatedScale(
-                      scale: isSelected ? 1.15 : 1.0,
-                      duration: const Duration(milliseconds: 200),
-                      child: Text(
-                        title,
-                        style: TextStyle(
-                          fontWeight: isSelected
-                              ? FontWeight.bold
-                              : FontWeight.normal,
-                          color: isSelected ? color : AppColors.grey,
-                          fontSize: 15,
-                          shadows: isSelected
-                              ? [
-                                  Shadow(
-                                    color: color.withAlpha((255 * 0.7).round()),
-                                    blurRadius: 8,
-                                  ),
-                                ]
-                              : [],
-                        ),
+              // --- NUEVO: Acceso al Centro de Documentación ---
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16.0,
+                  vertical: 20.0,
+                ),
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => DocumentsScreen(project: project),
                       ),
+                    );
+                  },
+                  icon: const FaIcon(
+                    FontAwesomeIcons.solidFolderOpen,
+                    color: Colors.black,
+                  ),
+                  label: const Text(
+                    'CENTRO DE DOCUMENTACIÓN',
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
-                );
-              },
-            ),
-          ),
-          // --- INICIO DE CAMBIOS: Añadimos la GlobalKey ---
-          SizedBox(
-            key: _kanbanKey, // <-- La Key para el auto-scroll
-            height: 450, // Tamaño fijo del Kanban
-            child: KanbanBoard(
-              projectId: widget.project.id,
-              controller: _boardPageController,
-              milestones: widget.project.milestones,
-              // Pasamos el título a resaltar
-              highlightMilestoneTitle: widget.highlightMilestoneTitle,
-            ),
-          ),
-          // --- FIN DE CAMBIOS ---
-          const SizedBox(height: 40),
-        ],
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.accentOrange,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+
+              // -----------------------------------------------
+              SizedBox(
+                height: 60,
+                child: PageView.builder(
+                  controller: _titlePageController,
+                  itemCount: 10000,
+                  onPageChanged: (int index) {
+                    final int realIndex = index % _columnTitles.length;
+                    if (realIndex != _currentPageIndex) {
+                      setState(() {
+                        _currentPageIndex = realIndex;
+                      });
+                    }
+                  },
+                  itemBuilder: (context, index) {
+                    final int realIndex = index % _columnTitles.length;
+                    final bool isSelected = _currentPageIndex == realIndex;
+                    final title = _columnTitles[realIndex];
+                    final color = _getBorderColor(title);
+
+                    return InkWell(
+                      onTap: () {
+                        _scrollToPage(index);
+                      },
+                      child: Center(
+                        child: AnimatedScale(
+                          scale: isSelected ? 1.15 : 1.0,
+                          duration: const Duration(milliseconds: 200),
+                          child: Text(
+                            title,
+                            style: TextStyle(
+                              fontWeight: isSelected
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                              color: isSelected ? color : AppColors.grey,
+                              fontSize: 15,
+                              shadows: isSelected
+                                  ? [
+                                      Shadow(
+                                        color: color.withAlpha(
+                                          (255 * 0.7).round(),
+                                        ),
+                                        blurRadius: 8,
+                                      ),
+                                    ]
+                                  : [],
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+
+              SizedBox(
+                key: _kanbanKey,
+                height: 450,
+                child: KanbanBoard(
+                  project: project,
+                  controller: _boardPageController,
+                  highlightMilestoneTitle: widget.highlightMilestoneTitle,
+                ),
+              ),
+              const SizedBox(height: 40),
+            ],
+          );
+        },
       ),
     );
   }

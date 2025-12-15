@@ -1,26 +1,25 @@
 // lib/widgets/kanban_board.dart
 import 'package:clarity_software/models/milestone.dart';
+import 'package:clarity_software/models/project.dart';
 import 'package:clarity_software/theme/app_colors.dart';
 import 'package:clarity_software/widgets/kanban_column.dart';
 import 'package:clarity_software/widgets/neon_card.dart';
 import 'package:flutter/material.dart';
 import 'package:clarity_software/models/feedback_message.dart';
 import 'package:clarity_software/services/feedback_notification_service.dart';
+import 'package:clarity_software/services/project_service.dart';
 
 class _KanbanMilestoneCard extends StatefulWidget {
-  final String projectId;
+  final Project project;
   final Milestone milestone;
   final Color glowColor;
-  // --- INICIO DE CAMBIOS ---
-  // Aceptamos el título del hito a resaltar
   final String? highlightMilestoneTitle;
-  // --- FIN DE CAMBIOS ---
 
   const _KanbanMilestoneCard({
-    required this.projectId,
+    required this.project,
     required this.milestone,
     required this.glowColor,
-    this.highlightMilestoneTitle, // <-- Nuevo
+    this.highlightMilestoneTitle,
   });
 
   @override
@@ -30,89 +29,102 @@ class _KanbanMilestoneCard extends StatefulWidget {
 class _KanbanMilestoneCardState extends State<_KanbanMilestoneCard> {
   final FeedbackNotificationService _feedbackService =
       FeedbackNotificationService();
+  final ProjectService _projectService = ProjectService();
   final TextEditingController _feedbackController = TextEditingController();
+
   bool _isExpanded = false;
-  List<FeedbackMessage> _feedbackHistory = [];
 
   @override
   void initState() {
     super.initState();
-    _loadFeedbackHistory();
-
-    // --- INICIO DE CAMBIOS: Auto-expandir y marcar como leído ---
+    // Auto-expandir si venimos de una notificación
     if (widget.highlightMilestoneTitle == widget.milestone.title) {
       _isExpanded = true;
-      // Marcamos como leído tan pronto como se muestra
-      _feedbackService.markMilestoneFeedbackAsRead(
-        widget.projectId,
-        widget.milestone.title,
-      );
-      // Recargamos el historial para que el indicador de "no leído" desaparezca
-      _loadFeedbackHistory();
+      _markAsRead();
     }
-    // --- FIN DE CAMBIOS ---
   }
 
-  void _loadFeedbackHistory() {
-    setState(() {
-      _feedbackHistory = _feedbackService.getFeedbackForMilestone(
-        widget.projectId,
-        widget.milestone.title,
-      );
-    });
+  void _markAsRead() {
+    _feedbackService.markMilestoneFeedbackAsRead(
+      widget.project.id,
+      widget.milestone.title,
+    );
   }
 
   void _toggleExpand() {
     setState(() {
       _isExpanded = !_isExpanded;
       if (_isExpanded) {
-        // Si se expande manualmente, también marcamos como leído
-        _feedbackService.markMilestoneFeedbackAsRead(
-          widget.projectId,
-          widget.milestone.title,
-        );
-        _loadFeedbackHistory();
+        _markAsRead();
       }
     });
   }
 
   void _submitFeedback(FeedbackType type) async {
-    // --- INICIO DE CORRECCIÓN: Chequeo de BuildContext ---
     if (!mounted) return;
-    // --- FIN DE CORRECCIÓN ---
 
     if (_feedbackController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Por favor, escribe un mensaje de feedback.'),
+          content: Text('Por favor, escribe un mensaje.'),
           backgroundColor: AppColors.accentRed,
         ),
       );
       return;
     }
 
+    // 1. Guardar Feedback en Firestore
     await _feedbackService.addFeedback(
-      projectId: widget.projectId,
+      projectId: widget.project.id,
       milestoneTitle: widget.milestone.title,
       message: _feedbackController.text,
       type: type,
       author: 'Cliente',
     );
 
+    // 2. Actualizar estado del Hito en Firestore
+    if (type == FeedbackType.approval) {
+      final updatedMilestone = Milestone(
+        title: widget.milestone.title,
+        progress: 1.0,
+        status: MilestoneStatus.completed,
+        responsible: widget.milestone.responsible,
+        startDate: widget.milestone.startDate,
+        deadline: widget.milestone.deadline,
+        fase: widget.milestone.fase,
+      );
+
+      final updatedMilestones = widget.project.milestones.map((m) {
+        return m.title == widget.milestone.title ? updatedMilestone : m;
+      }).toList();
+
+      final updatedProject = Project(
+        clientId: widget.project.clientId,
+        id: widget.project.id,
+        name: widget.project.name,
+        description: widget.project.description,
+        budget: widget.project.budget,
+        team: widget.project.team,
+        technologies: widget.project.technologies,
+        milestones: updatedMilestones,
+        lastUpdate: DateTime.now(),
+      );
+
+      await _projectService.saveProject(updatedProject);
+    }
+
     _feedbackController.clear();
-    _loadFeedbackHistory();
+    // No necesitamos recargar historial manual, el StreamBuilder lo hará
     setState(() {
       _isExpanded = false;
     });
 
-    // --- INICIO DE CORRECCIÓN: Chequeo de BuildContext ---
     if (!mounted) return;
-    // --- FIN DE CORRECCIÓN ---
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
           type == FeedbackType.approval
-              ? 'Hito aprobado con éxito.'
+              ? 'Hito aprobado y actualizado.'
               : 'Cambios solicitados.',
         ),
         backgroundColor: AppColors.accentGreen,
@@ -133,10 +145,6 @@ class _KanbanMilestoneCardState extends State<_KanbanMilestoneCard> {
       progressColor = AppColors.accentRed;
     }
 
-    final int unreadCount = _feedbackHistory
-        .where((f) => !f.isRead && f.author != 'Cliente')
-        .length;
-
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0),
       child: NeonCard(
@@ -144,82 +152,100 @@ class _KanbanMilestoneCardState extends State<_KanbanMilestoneCard> {
         padding: const EdgeInsets.all(12.0),
         child: InkWell(
           onTap: _toggleExpand,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          child: StreamBuilder<List<FeedbackMessage>>(
+            stream: _feedbackService.getFeedbackStream(
+              widget.project.id,
+              widget.milestone.title,
+            ),
+            builder: (context, snapshot) {
+              final feedbackHistory = snapshot.data ?? [];
+              final int unreadCount = feedbackHistory
+                  .where((f) => !f.isRead && f.author != 'Cliente')
+                  .length;
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: Text(
-                      widget.milestone.title,
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          widget.milestone.title,
+                          style: Theme.of(context).textTheme.bodyLarge
+                              ?.copyWith(fontWeight: FontWeight.bold),
+                        ),
                       ),
-                    ),
+                      if (unreadCount > 0 && !_isExpanded)
+                        Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: const BoxDecoration(
+                            color: AppColors.accentRed,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Text(
+                            unreadCount.toString(),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      Icon(
+                        _isExpanded
+                            ? Icons.keyboard_arrow_up
+                            : Icons.keyboard_arrow_down,
+                        color: AppColors.grey,
+                      ),
+                    ],
                   ),
-                  if (unreadCount > 0 && !_isExpanded)
-                    Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: const BoxDecoration(
-                        color: AppColors.accentRed,
-                        shape: BoxShape.circle,
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        widget.milestone.status.toString().split('.').last,
+                        style: Theme.of(
+                          context,
+                        ).textTheme.bodySmall?.copyWith(color: progressColor),
                       ),
-                      child: Text(
-                        unreadCount.toString(),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
+                      Text(
+                        '${(widget.milestone.progress * 100).toStringAsFixed(0)}%',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: progressColor,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                    ),
-                  Icon(
-                    _isExpanded
-                        ? Icons.keyboard_arrow_up
-                        : Icons.keyboard_arrow_down,
-                    color: AppColors.grey,
+                    ],
                   ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    widget.milestone.status.toString().split('.').last,
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodySmall?.copyWith(color: progressColor),
-                  ),
-                  Text(
-                    '${(widget.milestone.progress * 100).toStringAsFixed(0)}%',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: progressColor,
-                      fontWeight: FontWeight.bold,
+                  const SizedBox(height: 4),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(10.0),
+                    child: LinearProgressIndicator(
+                      value: widget.milestone.progress,
+                      minHeight: 6,
+                      backgroundColor: progressColor.withAlpha(
+                        (255 * 0.2).round(),
+                      ),
+                      valueColor: AlwaysStoppedAnimation<Color>(progressColor),
                     ),
                   ),
+                  if (_isExpanded)
+                    _buildFeedbackSection(context, feedbackHistory),
                 ],
-              ),
-              const SizedBox(height: 4),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(10.0),
-                child: LinearProgressIndicator(
-                  value: widget.milestone.progress,
-                  minHeight: 6,
-                  backgroundColor: progressColor.withAlpha((255 * 0.2).round()),
-                  valueColor: AlwaysStoppedAnimation<Color>(progressColor),
-                ),
-              ),
-              if (_isExpanded) _buildFeedbackSection(context),
-            ],
+              );
+            },
           ),
         ),
       ),
     );
   }
 
-  Widget _buildFeedbackSection(BuildContext context) {
+  Widget _buildFeedbackSection(
+    BuildContext context,
+    List<FeedbackMessage> feedbackHistory,
+  ) {
     return Padding(
       padding: const EdgeInsets.only(top: 16.0),
       child: Column(
@@ -238,23 +264,20 @@ class _KanbanMilestoneCardState extends State<_KanbanMilestoneCard> {
             decoration: InputDecoration(
               hintText: 'Escribe tu mensaje...',
               filled: true,
-              // --- CORRECCIÓN LINT ---
               fillColor: AppColors.primaryBackground.withAlpha(
                 (255 * 0.5).round(),
-              ), // withAlpha
+              ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                // --- CORRECCIÓN LINT ---
                 borderSide: BorderSide(
                   color: AppColors.grey.withAlpha((255 * 0.5).round()),
-                ), // withAlpha
+                ),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                // --- CORRECCIÓN LINT ---
                 borderSide: BorderSide(
                   color: AppColors.grey.withAlpha((255 * 0.5).round()),
-                ), // withAlpha
+                ),
               ),
             ),
           ),
@@ -290,7 +313,7 @@ class _KanbanMilestoneCardState extends State<_KanbanMilestoneCard> {
               ),
             ],
           ),
-          if (_feedbackHistory.isNotEmpty) ...[
+          if (feedbackHistory.isNotEmpty) ...[
             const SizedBox(height: 16),
             const Divider(color: AppColors.grey),
             const SizedBox(height: 8),
@@ -298,7 +321,7 @@ class _KanbanMilestoneCardState extends State<_KanbanMilestoneCard> {
               'Historial de Feedback:',
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
             ),
-            ..._feedbackHistory.map((msg) => _buildHistoryTile(msg)),
+            ...feedbackHistory.map((msg) => _buildHistoryTile(msg)),
           ],
         ],
       ),
@@ -344,18 +367,14 @@ class _KanbanMilestoneCardState extends State<_KanbanMilestoneCard> {
 class KanbanBoard extends StatelessWidget {
   const KanbanBoard({
     super.key,
-    required this.projectId,
-    required this.milestones,
+    required this.project,
     this.controller,
-    this.highlightMilestoneTitle, // <-- Acepta el título a resaltar
+    this.highlightMilestoneTitle,
   });
 
-  final String projectId;
-  final List<Milestone> milestones;
+  final Project project;
   final PageController? controller;
-  // --- INICIO DE CAMBIOS ---
-  final String? highlightMilestoneTitle; // <-- Nueva propiedad
-  // --- FIN DE CAMBIOS ---
+  final String? highlightMilestoneTitle;
 
   static const String fase1 = 'Planificación';
   static const String fase2 = 'Desarrollo';
@@ -390,7 +409,7 @@ class KanbanBoard extends StatelessWidget {
       fase4: [],
     };
 
-    for (var milestone in milestones) {
+    for (var milestone in project.milestones) {
       if (milestone.fase == MilestoneFase.planificacion) {
         columns[fase1]!.add(milestone);
       } else if (milestone.fase == MilestoneFase.desarrollo) {
@@ -423,13 +442,10 @@ class KanbanBoard extends StatelessWidget {
               borderColor: borderColor,
               children: milestoneList.map((milestone) {
                 return _KanbanMilestoneCard(
-                  projectId: projectId,
+                  project: project,
                   milestone: milestone,
                   glowColor: borderColor,
-                  // --- INICIO DE CAMBIO ---
-                  // Pasamos el título a resaltar a la tarjeta
                   highlightMilestoneTitle: highlightMilestoneTitle,
-                  // --- FIN DE CAMBIO ---
                 );
               }).toList(),
             ),
