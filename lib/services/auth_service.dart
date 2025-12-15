@@ -3,9 +3,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:clarity_software/models/client_user.dart';
+import 'package:flutter/foundation.dart'; // Para debugPrint
 
 class AuthService {
-  // Singleton
   static final AuthService _instance = AuthService._internal();
   factory AuthService() => _instance;
   AuthService._internal();
@@ -17,7 +17,6 @@ class AuthService {
   ClientUser? _currentUser;
   ClientUser? get currentUser => _currentUser;
 
-  // Stream para escuchar cambios en el estado de autenticación
   Stream<ClientUser?> get authStateChanges async* {
     yield* _auth.authStateChanges().asyncMap((User? firebaseUser) async {
       if (firebaseUser == null) {
@@ -29,7 +28,6 @@ class AuthService {
     });
   }
 
-  // --- LOGIN CON CORREO Y CONTRASEÑA ---
   Future<ClientUser?> signInWithEmailAndPassword(
     String email,
     String password,
@@ -45,18 +43,16 @@ class AuthService {
         return _currentUser;
       }
     } catch (e) {
-      print("Error en Email Sign-In: $e");
-      rethrow; // Re-lanzamos el error para mostrarlo en la pantalla
+      debugPrint("Error en Email Sign-In: $e"); // CORRECCIÓN
+      rethrow;
     }
     return null;
   }
 
-  // --- RECUPERAR CONTRASEÑA ---
   Future<void> sendPasswordResetEmail(String email) async {
     await _auth.sendPasswordResetEmail(email: email);
   }
 
-  // --- LOGIN CON GOOGLE ---
   Future<ClientUser?> signInWithGoogle() async {
     try {
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
@@ -79,20 +75,18 @@ class AuthService {
         return _currentUser;
       }
     } catch (e) {
-      print("Error en Google Sign-In: $e");
+      debugPrint("Error en Google Sign-In: $e"); // CORRECCIÓN
       return null;
     }
     return null;
   }
 
-  // --- CERRAR SESIÓN ---
   Future<void> signOut() async {
     await _googleSignIn.signOut();
     await _auth.signOut();
     _currentUser = null;
   }
 
-  // --- Lógica Interna de Base de Datos ---
   Future<ClientUser> _fetchOrCreateUserFromFirestore(User firebaseUser) async {
     final userRef = _db.collection('users').doc(firebaseUser.uid);
     final snapshot = await userRef.get();

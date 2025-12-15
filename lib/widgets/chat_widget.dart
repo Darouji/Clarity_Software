@@ -34,8 +34,6 @@ class _ChatWidgetState extends State<ChatWidget> {
   final DocumentService _documentService = DocumentService();
 
   bool _isSending = false;
-
-  // Estado para la "Cita" actual (lo que se está respondiendo)
   MessageCitation? _activeCitation;
 
   Future<void> _sendMessage() async {
@@ -49,22 +47,24 @@ class _ChatWidgetState extends State<ChatWidget> {
         milestoneTitle: widget.milestoneTitle,
         message: _controller.text.trim(),
         type: FeedbackType.general,
-        author: 'Cliente', // En una app real, usar AuthService.currentUser.name
+        author: 'Cliente',
         citation: _activeCitation,
       );
 
       _controller.clear();
-      setState(() => _activeCitation = null); // Limpiar cita después de enviar
+      setState(() => _activeCitation = null);
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      // --- CORRECCIÓN DE LINT ---
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
     } finally {
       if (mounted) setState(() => _isSending = false);
     }
   }
 
-  // --- MENÚ DE ADJUNTOS Y CITAS ---
   void _showAttachmentMenu() {
     showModalBottomSheet(
       context: context,
@@ -114,7 +114,6 @@ class _ChatWidgetState extends State<ChatWidget> {
   }
 
   Future<void> _uploadFile() async {
-    // Lógica simplificada: Sube archivo y envía mensaje automático con el link
     FilePickerResult? result = await FilePicker.platform.pickFiles();
     if (result != null) {
       setState(() => _isSending = true);
@@ -213,7 +212,7 @@ class _ChatWidgetState extends State<ChatWidget> {
                   setState(() {
                     _activeCitation = MessageCitation(
                       type: CitationType.milestone,
-                      referenceId: m.title, // Usamos título como ID simple
+                      referenceId: m.title,
                       previewData:
                           'Hito: ${m.title} (${(m.progress * 100).toInt()}%)',
                     );
@@ -232,17 +231,8 @@ class _ChatWidgetState extends State<ChatWidget> {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        // --- LISTA DE MENSAJES ---
-        ListView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount:
-              0, // El StreamBuilder externo manejará esto, aquí solo mostramos la estructura interna
-          itemBuilder: (context, index) => const SizedBox(),
-        ),
-        // Nota: Este widget está diseñado para ser hijo de un StreamBuilder en KanbanBoard.
-        // Para simplificar, asumiremos que KanbanBoard renderiza la lista y este widget solo maneja el INPUT.
-        // Pero para cumplir con "Chat Completo", vamos a incluir la lógica de renderizado de burbuja aquí abajo.
+        // Aquí iría la lista de mensajes si este widget la manejara, pero
+        // la maneja el StreamBuilder externo en KanbanBoard.
 
         // --- ÁREA DE INPUT ---
         Container(
@@ -255,7 +245,6 @@ class _ChatWidgetState extends State<ChatWidget> {
           ),
           child: Column(
             children: [
-              // Vista previa de la Cita Activa
               if (_activeCitation != null)
                 Container(
                   margin: const EdgeInsets.only(bottom: 8),
@@ -336,10 +325,9 @@ class _ChatWidgetState extends State<ChatWidget> {
 }
 
 // --- WIDGET AUXILIAR: Burbuja de Mensaje ---
-// Usar este widget dentro del StreamBuilder del Kanban o pantalla de Chat
 class ChatBubble extends StatelessWidget {
   final FeedbackMessage message;
-  final bool isMe; // Si soy el autor
+  final bool isMe;
 
   const ChatBubble({super.key, required this.message, required this.isMe});
 
@@ -372,7 +360,6 @@ class ChatBubble extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 1. Mostrar Cita si existe
               if (message.citation != null)
                 Container(
                   margin: const EdgeInsets.only(bottom: 8),
@@ -393,13 +380,11 @@ class ChatBubble extends StatelessWidget {
                   ),
                 ),
 
-              // 2. Mostrar Texto
               Text(
                 message.message,
                 style: const TextStyle(color: Colors.white),
               ),
 
-              // 3. Mostrar Adjuntos
               if (message.attachments.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(top: 8.0),
@@ -421,7 +406,6 @@ class ChatBubble extends StatelessWidget {
                   ),
                 ),
 
-              // 4. Fecha
               const SizedBox(height: 4),
               Text(
                 DateFormat('HH:mm').format(message.timestamp),

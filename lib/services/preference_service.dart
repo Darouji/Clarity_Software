@@ -2,6 +2,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:clarity_software/models/dashboard_config.dart';
 import 'package:clarity_software/services/auth_service.dart';
+import 'package:flutter/foundation.dart'; // Para debugPrint
 
 class PreferenceService {
   static final PreferenceService _instance = PreferenceService._internal();
@@ -11,7 +12,6 @@ class PreferenceService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final AuthService _authService = AuthService();
 
-  // Referencia al documento de configuración del usuario actual
   DocumentReference get _configRef {
     final user = _authService.currentUser;
     if (user == null) throw Exception('No user logged in');
@@ -22,7 +22,6 @@ class PreferenceService {
         .doc('dashboard_config');
   }
 
-  // --- STREAM: Escuchar cambios en tiempo real ---
   Stream<DashboardConfig> getDashboardConfigStream() {
     try {
       final user = _authService.currentUser;
@@ -40,20 +39,19 @@ class PreferenceService {
                 snapshot.data() as Map<String, dynamic>,
               );
             }
-            return DashboardConfig(); // Configuración por defecto
+            return DashboardConfig();
           });
     } catch (e) {
-      print('Error en PreferenceService stream: $e');
+      debugPrint('Error en PreferenceService stream: $e'); // CORRECCIÓN
       return Stream.value(DashboardConfig());
     }
   }
 
-  // --- GUARDAR CONFIGURACIÓN ---
   Future<void> saveDashboardConfig(DashboardConfig config) async {
     try {
       await _configRef.set(config.toJson());
     } catch (e) {
-      print('Error guardando preferencias: $e');
+      debugPrint('Error guardando preferencias: $e'); // CORRECCIÓN
       rethrow;
     }
   }

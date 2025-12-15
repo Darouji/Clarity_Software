@@ -35,6 +35,7 @@ dependencies:
   open_file: ^3.5.0
   path_provider: ^2.1.5
   url_launcher: ^6.3.0
+  path: ^1.9.0  # <--- NUEVA DEPENDENCIA (Soluciona el error en storage_service)
   
   # --- Firma Digital ---
   signature: ^5.5.0
@@ -46,7 +47,6 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
-  # --- Generador de Iconos ---
   flutter_launcher_icons: ^0.14.3
 
 # --- Configuración del Icono ---
@@ -55,10 +55,8 @@ flutter_launcher_icons:
   ios: true
   image_path: "assets/logos/logo_clarity.png"
   min_sdk_android: 21
-  # Fondo Negro para iconos adaptativos (Android 8+)
   adaptive_icon_background: "#000000"
   adaptive_icon_foreground: "assets/logos/logo_clarity.png"
-  # Quitar fondo blanco por defecto en iOS (si el png tiene transparencia)
   remove_alpha_ios: true
 
 flutter:

@@ -125,10 +125,13 @@ class _LoginScreenState extends State<LoginScreen> {
                   Navigator.pop(context);
                   _showSuccessSnackBar('Correo de recuperación enviado.');
                 } catch (e) {
-                  Navigator.pop(context);
-                  _showErrorSnackBar(
-                    'No se pudo enviar el correo. Verifica que exista.',
-                  );
+                  // --- CORRECCIÓN DE LINT ---
+                  if (mounted) {
+                    Navigator.pop(context);
+                    _showErrorSnackBar(
+                      'No se pudo enviar el correo. Verifica que exista.',
+                    );
+                  }
                 }
               }
             },
@@ -177,7 +180,6 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // --- Diseño de Input Fields ---
   InputDecoration _inputDecoration(String label, IconData icon) {
     return InputDecoration(
       labelText: label,
@@ -212,7 +214,6 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // --- LOGO ---
                 Container(
                   constraints: const BoxConstraints(
                     maxWidth: 180,
@@ -251,7 +252,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 40),
 
-                // --- INPUT: EMAIL ---
                 TextFormField(
                   controller: _emailController,
                   style: const TextStyle(color: Colors.white),
@@ -265,7 +265,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 20),
 
-                // --- INPUT: PASSWORD ---
                 TextFormField(
                   controller: _passwordController,
                   style: const TextStyle(color: Colors.white),
@@ -289,7 +288,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       value!.isEmpty ? 'Ingresa tu contraseña' : null,
                 ),
 
-                // --- OLVIDÉ MI CONTRASEÑA ---
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(
@@ -306,7 +304,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 const SizedBox(height: 30),
 
-                // --- BOTÓN LOGIN (EMAIL) ---
                 if (_isLoading)
                   const CircularProgressIndicator(color: AppColors.cyberBlue)
                 else
@@ -336,7 +333,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 const SizedBox(height: 25),
 
-                // --- DIVIDER ---
                 Row(
                   children: [
                     const Expanded(child: Divider(color: Colors.white24)),
@@ -355,7 +351,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 const SizedBox(height: 25),
 
-                // --- BOTÓN GOOGLE ---
                 SizedBox(
                   width: double.infinity,
                   height: 55,
