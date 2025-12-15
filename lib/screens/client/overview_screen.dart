@@ -2,6 +2,7 @@
 import 'dart:ui';
 import 'package:clarity_software/models/dashboard_config.dart';
 import 'package:clarity_software/models/project.dart';
+import 'package:clarity_software/screens/client/booking_screen.dart'; // Importar Booking
 import 'package:clarity_software/screens/client/dashboard_customizer_dialog.dart';
 import 'package:clarity_software/screens/client/project_details_screen.dart';
 import 'package:clarity_software/services/preference_service.dart';
@@ -18,7 +19,6 @@ import 'package:clarity_software/services/auth_service.dart';
 import 'package:clarity_software/models/client_user.dart';
 import 'package:clarity_software/services/feedback_notification_service.dart';
 import 'package:clarity_software/models/feedback_message.dart';
-// --- NUEVO: Importar CalendarWidget ---
 import 'package:clarity_software/widgets/calendar_widget.dart';
 
 Color getProjectColorByProgress(double progress) {
@@ -113,10 +113,277 @@ class _OverviewScreenState extends State<OverviewScreen>
     );
   }
 
+  // --- WIDGETS MODULARES ---
+
+  Widget _buildShortcutsModule() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20.0),
+      child: Row(
+        children: [
+          Expanded(
+            child: ElevatedButton.icon(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const BookingScreen(),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.calendar_month, color: Colors.white),
+              label: const Text('Agendar Cita'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.accentMagenta,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: OutlinedButton.icon(
+              onPressed: () {
+                // Futura expansión: Ver todos los archivos globales
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Accede a los archivos desde cada proyecto'),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.folder_shared, color: AppColors.cyberBlue),
+              label: const Text('Mis Archivos'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.cyberBlue,
+                side: const BorderSide(color: AppColors.cyberBlue),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildChartsModule(List<Project> sortedProjects) {
+    return Column(
+      children: [
+        SizedBox(
+          height: 220,
+          child: PageView(
+            controller: _pageController,
+            onPageChanged: (int page) =>
+                setState(() => _currentChartPage = page),
+            children: [
+              PieChart(projects: sortedProjects, size: 220),
+              BarChart(projects: sortedProjects, size: 220),
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [_buildDot(0), _buildDot(1)],
+        ),
+        const SizedBox(height: 20),
+      ],
+    );
+  }
+
+  Widget _buildProjectsModule(
+    List<Project> sortedProjects,
+    bool showStats,
+    int activeCount,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          'Proyectos Activos ($activeCount)',
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+          textAlign: TextAlign.left,
+        ),
+        const SizedBox(height: 15),
+        ...sortedProjects.map((project) {
+          final projectColor = getProjectColorByProgress(
+            project.overallProgress,
+          );
+
+          return StreamBuilder<List<FeedbackMessage>>(
+            stream: _feedbackService.getUnreadFeedbackStream(project.id),
+            builder: (context, feedbackSnapshot) {
+              final unreadMessages = feedbackSnapshot.data ?? [];
+              final int unreadCount = unreadMessages.length;
+              final bool hasUnreadFeedback = unreadCount > 0;
+              final bool hasUnreadView = !_viewStatusService.hasBeenViewed(
+                project.id,
+              );
+
+              String subtitleText;
+              Color subtitleColor = AppColors.secondaryText;
+              String? highlightMilestoneTitle;
+
+              if (hasUnreadFeedback) {
+                subtitleText =
+                    '$unreadCount novedad${unreadCount > 1 ? 'es' : ''} requiere${unreadCount > 1 ? 'n' : ''} atención';
+                subtitleColor = projectColor;
+                highlightMilestoneTitle = unreadMessages.first.milestoneTitle;
+              } else if (project.status == 'Finalizado') {
+                subtitleText = hasUnreadView
+                    ? 'Hay novedades sin revisar'
+                    : 'Finalizado con éxito';
+                if (!hasUnreadView) {
+                  subtitleColor = AppColors.statusFinishedText;
+                }
+              } else {
+                subtitleText = hasUnreadView
+                    ? 'Nuevo proyecto'
+                    : _formatLastUpdate(project.lastUpdate);
+              }
+
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 24.0),
+                child: GestureDetector(
+                  onTap: () async {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ProjectDetailsScreen(
+                          project: project,
+                          highlightMilestoneTitle: highlightMilestoneTitle,
+                        ),
+                      ),
+                    );
+                    _viewStatusService.markAsViewed(project.id);
+                  },
+                  child: NeonCard(
+                    glowColor: projectColor,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          project.name,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            if (hasUnreadFeedback)
+                              FadeTransition(
+                                opacity: _blinkAnimation,
+                                child: Icon(
+                                  Icons.notification_important,
+                                  color: subtitleColor,
+                                  size: 14,
+                                ),
+                              ),
+                            if (hasUnreadFeedback) const SizedBox(width: 4),
+                            Expanded(
+                              child: hasUnreadFeedback
+                                  ? FadeTransition(
+                                      opacity: _blinkAnimation,
+                                      child: Text(
+                                        subtitleText,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall
+                                            ?.copyWith(
+                                              color: subtitleColor,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                      ),
+                                    )
+                                  : Text(
+                                      subtitleText,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall
+                                          ?.copyWith(color: subtitleColor),
+                                    ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(10.0),
+                          child: LinearProgressIndicator(
+                            value: project.overallProgress,
+                            minHeight: 8,
+                            backgroundColor: AppColors.black.withValues(
+                              alpha: 0.5,
+                            ),
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              projectColor,
+                            ),
+                          ),
+                        ),
+                        // --- STATS DENTRO DE LA TARJETA (CONDICIONAL) ---
+                        if (showStats) ...[
+                          const SizedBox(height: 15),
+                          GridView(
+                            padding: EdgeInsets.zero,
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            gridDelegate:
+                                const SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: 2,
+                                  mainAxisSpacing: 8.0,
+                                  crossAxisSpacing: 8.0,
+                                  childAspectRatio: 2.5,
+                                ),
+                            children: [
+                              InfoBlock(
+                                icon: Icons.flag_outlined,
+                                label: 'ESTADO',
+                                value: project.status,
+                                glowColor: AppColors.neonYellow,
+                              ),
+                              InfoBlock(
+                                icon: Icons.attach_money_outlined,
+                                label: 'PRESUPUESTO',
+                                value: '\$${project.budget}',
+                                glowColor: AppColors.neonMoneyGreen,
+                              ),
+                              InfoBlock(
+                                icon: Icons.people_outline,
+                                label: 'EQUIPO',
+                                value: '${project.team.length}',
+                                glowColor: AppColors.neonPink,
+                              ),
+                              InfoBlock(
+                                icon: Icons.code_outlined,
+                                label: 'TECH',
+                                value: '${project.technologies.length}',
+                                glowColor: AppColors.cyberBlue,
+                              ),
+                            ],
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          );
+        }),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final textTheme = theme.textTheme;
     const double appBarHeight = 65.0;
 
     if (_currentUser == null) {
@@ -184,243 +451,64 @@ class _OverviewScreenState extends State<OverviewScreen>
                 );
               }
 
-              if (snapshot.hasError) {
-                return Center(
-                  child: Text(
-                    'Error al cargar proyectos:\n${snapshot.error}',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(color: Colors.redAccent),
-                  ),
-                );
-              }
-
               final projects = snapshot.data ?? [];
               final sortedProjects = List<Project>.from(projects);
               sortedProjects.sort(
                 (a, b) => a.overallProgress.compareTo(b.overallProgress),
               );
-
-              final int activeProjectsCount = projects
+              final activeCount = projects
                   .where((p) => p.status != 'Finalizado')
                   .length;
 
+              // --- CONSTRUCCIÓN DINÁMICA DEL DASHBOARD ---
+              // Iteramos sobre el orden definido en 'config.layout'
               return ListView(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
                 children: [
                   const SizedBox(height: appBarHeight + 20.0),
 
-                  // --- MÓDULO 1: GRÁFICOS (Condicional) ---
-                  if (config.showCharts) ...[
-                    SizedBox(
-                      height: 220,
-                      child: PageView(
-                        controller: _pageController,
-                        onPageChanged: (int page) =>
-                            setState(() => _currentChartPage = page),
-                        children: [
-                          PieChart(projects: sortedProjects, size: 220),
-                          BarChart(projects: sortedProjects, size: 220),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [_buildDot(0), _buildDot(1)],
-                    ),
-                    const SizedBox(height: 20),
-                  ],
-
-                  // --- MÓDULO NUEVO: CALENDARIO / AGENDA (Condicional) ---
-                  if (config.showCalendar) ...[
-                    CalendarWidget(projects: sortedProjects),
-                    const SizedBox(height: 30),
-                  ],
-
-                  if (config.showProjects)
-                    Text(
-                      'Proyectos Activos ($activeProjectsCount)',
-                      style: textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  const SizedBox(height: 20),
-
-                  // --- MÓDULO 2: LISTA DE PROYECTOS (Condicional) ---
-                  if (config.showProjects)
-                    ...sortedProjects.map((project) {
-                      final projectColor = getProjectColorByProgress(
-                        project.overallProgress,
-                      );
-
-                      return StreamBuilder<List<FeedbackMessage>>(
-                        stream: _feedbackService.getUnreadFeedbackStream(
-                          project.id,
-                        ),
-                        builder: (context, feedbackSnapshot) {
-                          final unreadMessages = feedbackSnapshot.data ?? [];
-                          final int unreadCount = unreadMessages.length;
-                          final bool hasUnreadFeedback = unreadCount > 0;
-                          final bool hasUnreadView = !_viewStatusService
-                              .hasBeenViewed(project.id);
-
-                          String subtitleText;
-                          Color subtitleColor = AppColors.secondaryText;
-                          String? highlightMilestoneTitle;
-
-                          if (hasUnreadFeedback) {
-                            subtitleText =
-                                '$unreadCount novedad${unreadCount > 1 ? 'es' : ''} requiere${unreadCount > 1 ? 'n' : ''} atención';
-                            subtitleColor = projectColor;
-                            highlightMilestoneTitle =
-                                unreadMessages.first.milestoneTitle;
-                          } else if (project.status == 'Finalizado') {
-                            subtitleText = hasUnreadView
-                                ? 'Hay novedades sin revisar'
-                                : 'Finalizado con éxito';
-                            if (!hasUnreadView) {
-                              subtitleColor = AppColors.statusFinishedText;
+                  for (String moduleId in config.layout)
+                    Builder(
+                      builder: (context) {
+                        switch (moduleId) {
+                          case 'shortcuts':
+                            if (config.showShortcuts) {
+                              return _buildShortcutsModule();
                             }
-                          } else {
-                            subtitleText = hasUnreadView
-                                ? 'Nuevo proyecto'
-                                : _formatLastUpdate(project.lastUpdate);
-                          }
+                            return const SizedBox();
+                          case 'calendar':
+                            if (config.showCalendar) {
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 20.0),
+                                child: CalendarWidget(projects: sortedProjects),
+                              );
+                            }
+                            return const SizedBox();
+                          case 'charts':
+                            if (config.showCharts && projects.isNotEmpty) {
+                              return _buildChartsModule(sortedProjects);
+                            }
+                            return const SizedBox();
+                          case 'stats':
+                            // Nota: Stats se integra en 'projects' o se muestra globalmente.
+                            // En esta versión simplificada, 'stats' controla la visibilidad
+                            // de los detalles dentro de las tarjetas de proyecto.
+                            return const SizedBox();
+                          case 'projects':
+                            if (config.showProjects) {
+                              return _buildProjectsModule(
+                                sortedProjects,
+                                config.showStats,
+                                activeCount,
+                              );
+                            }
+                            return const SizedBox();
+                          default:
+                            return const SizedBox();
+                        }
+                      },
+                    ),
 
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 30.0),
-                            child: GestureDetector(
-                              onTap: () async {
-                                await Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => ProjectDetailsScreen(
-                                      project: project,
-                                      highlightMilestoneTitle:
-                                          highlightMilestoneTitle,
-                                    ),
-                                  ),
-                                );
-                                _viewStatusService.markAsViewed(project.id);
-                              },
-                              child: NeonCard(
-                                glowColor: projectColor,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      project.name,
-                                      style: const TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Row(
-                                      children: [
-                                        if (hasUnreadFeedback)
-                                          FadeTransition(
-                                            opacity: _blinkAnimation,
-                                            child: Icon(
-                                              Icons.notification_important,
-                                              color: subtitleColor,
-                                              size: 14,
-                                            ),
-                                          ),
-                                        if (hasUnreadFeedback)
-                                          const SizedBox(width: 4),
-                                        Expanded(
-                                          child: hasUnreadFeedback
-                                              ? FadeTransition(
-                                                  opacity: _blinkAnimation,
-                                                  child: Text(
-                                                    subtitleText,
-                                                    style: textTheme.bodySmall
-                                                        ?.copyWith(
-                                                          color: subtitleColor,
-                                                          fontWeight:
-                                                              FontWeight.bold,
-                                                        ),
-                                                  ),
-                                                )
-                                              : Text(
-                                                  subtitleText,
-                                                  style: textTheme.bodySmall
-                                                      ?.copyWith(
-                                                        color: subtitleColor,
-                                                      ),
-                                                ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 8),
-                                    ClipRRect(
-                                      borderRadius: BorderRadius.circular(10.0),
-                                      child: LinearProgressIndicator(
-                                        value: project.overallProgress,
-                                        minHeight: 8,
-                                        backgroundColor: AppColors.black
-                                            .withValues(alpha: 0.5),
-                                        valueColor:
-                                            AlwaysStoppedAnimation<Color>(
-                                              projectColor,
-                                            ),
-                                      ),
-                                    ),
-
-                                    // --- MÓDULO 3: ESTADÍSTICAS (Condicional) ---
-                                    if (config.showStats) ...[
-                                      const SizedBox(height: 15),
-                                      GridView(
-                                        padding: EdgeInsets.zero,
-                                        shrinkWrap: true,
-                                        physics:
-                                            const NeverScrollableScrollPhysics(),
-                                        gridDelegate:
-                                            const SliverGridDelegateWithFixedCrossAxisCount(
-                                              crossAxisCount: 2,
-                                              mainAxisSpacing: 8.0,
-                                              crossAxisSpacing: 8.0,
-                                              childAspectRatio: 2.5,
-                                            ),
-                                        children: [
-                                          InfoBlock(
-                                            icon: Icons.flag_outlined,
-                                            label: 'ESTADO',
-                                            value: project.status,
-                                            glowColor: AppColors.neonYellow,
-                                          ),
-                                          InfoBlock(
-                                            icon: Icons.attach_money_outlined,
-                                            label: 'PRESUPUESTO',
-                                            value: '\$${project.budget}',
-                                            glowColor: AppColors.neonMoneyGreen,
-                                          ),
-                                          InfoBlock(
-                                            icon: Icons.people_outline,
-                                            label: 'EQUIPO',
-                                            value: '${project.team.length}',
-                                            glowColor: AppColors.neonPink,
-                                          ),
-                                          InfoBlock(
-                                            icon: Icons.code_outlined,
-                                            label: 'TECH',
-                                            value:
-                                                '${project.technologies.length}',
-                                            glowColor: AppColors.cyberBlue,
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ],
-                                ),
-                              ),
-                            ),
-                          );
-                        },
-                      );
-                    }),
                   const SizedBox(height: 30),
                 ],
               );

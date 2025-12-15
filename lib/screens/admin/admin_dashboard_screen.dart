@@ -1,12 +1,13 @@
 // lib/screens/admin/admin_dashboard_screen.dart
 import 'dart:ui';
 import 'package:clarity_software/models/client_user.dart';
+import 'package:clarity_software/screens/admin/admin_appointments_screen.dart'; // Nuevo Import
 import 'package:clarity_software/screens/admin/client_editor_dialog.dart';
 import 'package:clarity_software/screens/admin/admin_project_list_screen.dart';
 import 'package:clarity_software/services/user_service.dart';
 import 'package:clarity_software/theme/app_colors.dart';
 import 'package:clarity_software/widgets/global_menu.dart';
-import 'package:clarity_software/widgets/neon_card.dart'; // Importar NeonCard
+import 'package:clarity_software/widgets/neon_card.dart';
 import 'package:flutter/material.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
@@ -25,6 +26,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       MaterialPageRoute(
         builder: (context) => AdminProjectListScreen(client: client),
       ),
+    );
+  }
+
+  void _navigateToAppointments() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const AdminAppointmentsScreen()),
     );
   }
 
@@ -67,9 +75,25 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         ),
                       ),
                     ),
-                    const Align(
-                      alignment: Alignment(1.0, 0.2),
-                      child: GlobalAppBarMenu(currentScreen: AppScreen.admin),
+                    Align(
+                      alignment: const Alignment(1.0, 0.2),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // --- NUEVO: Botón de Citas/Inbox ---
+                          IconButton(
+                            icon: const Icon(
+                              Icons.notifications_none,
+                              color: Colors.white,
+                            ),
+                            tooltip: 'Solicitudes de Citas',
+                            onPressed: _navigateToAppointments,
+                          ),
+                          const GlobalAppBarMenu(
+                            currentScreen: AppScreen.admin,
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -119,7 +143,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             itemCount: clients.length,
             itemBuilder: (context, index) {
               final client = clients[index];
-              // El primer item necesita un padding superior extra por el AppBar transparente
               final double topPadding = index == 0 ? appBarHeight + 20 : 0;
 
               return Padding(
@@ -131,7 +154,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     padding: const EdgeInsets.all(16),
                     child: Row(
                       children: [
-                        // Avatar / Icono
                         Container(
                           width: 50,
                           height: 50,
@@ -153,7 +175,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                                 ),
                         ),
                         const SizedBox(width: 16),
-                        // Info Texto
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -177,7 +198,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                             ],
                           ),
                         ),
-                        // Botón Editar
                         IconButton(
                           icon: const Icon(
                             Icons.edit_outlined,

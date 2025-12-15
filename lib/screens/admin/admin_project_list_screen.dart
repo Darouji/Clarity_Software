@@ -288,9 +288,9 @@ class _AdminProjectListScreenState extends State<AdminProjectListScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: AppColors.accentMagenta,
-        child: const Icon(Icons.add, color: Colors.white),
         tooltip: 'Crear Nuevo Proyecto',
         onPressed: () => _editProject(null),
+        child: const Icon(Icons.add, color: Colors.white),
       ),
     );
   }

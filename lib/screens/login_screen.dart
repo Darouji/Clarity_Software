@@ -222,7 +222,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: AppColors.cyberBlue.withOpacity(0.15),
+                        color: AppColors.cyberBlue.withValues(alpha: 0.15),
                         blurRadius: 40,
                         spreadRadius: 10,
                       ),
@@ -297,7 +297,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: Text(
                       '¿Olvidaste tu contraseña?',
                       style: TextStyle(
-                        color: AppColors.cyberBlue.withOpacity(0.8),
+                        color: AppColors.cyberBlue.withValues(alpha: 0.8),
                         fontSize: 13,
                       ),
                     ),
@@ -322,7 +322,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         elevation: 5,
-                        shadowColor: AppColors.cyberBlue.withOpacity(0.4),
+                        shadowColor: AppColors.cyberBlue.withValues(alpha: 0.4),
                       ),
                       child: const Text(
                         'INGRESAR',
@@ -345,7 +345,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: Text(
                         'O continúa con',
                         style: TextStyle(
-                          color: AppColors.secondaryText.withOpacity(0.5),
+                          color: AppColors.secondaryText.withValues(alpha: 0.5),
                         ),
                       ),
                     ),
@@ -373,10 +373,12 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white.withOpacity(0.1),
+                      backgroundColor: Colors.white.withValues(alpha: 0.1),
                       foregroundColor: Colors.white,
                       elevation: 0,
-                      side: BorderSide(color: Colors.white.withOpacity(0.1)),
+                      side: BorderSide(
+                        color: Colors.white.withValues(alpha: 0.1),
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),

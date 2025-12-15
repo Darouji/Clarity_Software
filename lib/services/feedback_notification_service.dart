@@ -10,17 +10,17 @@ class FeedbackNotificationService {
 
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  // Ya no necesitamos init() con SharedPreferences, pero lo dejamos vacío
-  // por compatibilidad con el main.dart existente.
   Future<void> init() async {}
 
-  /// Añade un nuevo mensaje de feedback a la subcolección del proyecto
+  /// Añade un nuevo mensaje de feedback (AHORA SOPORTA ADJUNTOS Y CITAS)
   Future<void> addFeedback({
     required String projectId,
     required String milestoneTitle,
     required String message,
     required FeedbackType type,
     required String author,
+    List<String> attachments = const [], // Nuevo
+    MessageCitation? citation, // Nuevo
   }) async {
     final newMessage = FeedbackMessage(
       id: '', // Firestore generará el ID
@@ -31,6 +31,8 @@ class FeedbackNotificationService {
       timestamp: DateTime.now(),
       author: author,
       isRead: false,
+      attachments: attachments,
+      citation: citation,
     );
 
     await _db
@@ -50,34 +52,28 @@ class FeedbackNotificationService {
         .doc(projectId)
         .collection('feedback')
         .where('milestoneTitle', isEqualTo: milestoneTitle)
-        // Ordenamos por fecha descendente (más nuevos primero)
-        // Nota: Si Firebase pide crear un índice, verás el link en la consola de debug
-        // .orderBy('timestamp', descending: true)
+        // .orderBy('timestamp', descending: true) // Requiere índice
         .snapshots()
         .map((snapshot) {
           final msgs = snapshot.docs.map((doc) {
             final data = doc.data();
-            data['id'] = doc.id; // Asegurar ID
+            data['id'] = doc.id;
             return FeedbackMessage.fromJson(data);
           }).toList();
 
-          // Ordenamiento manual por si falta el índice compuesto en Firestore
           msgs.sort((a, b) => b.timestamp.compareTo(a.timestamp));
           return msgs;
         });
   }
 
-  /// STREAM: Escucha mensajes NO LEÍDOS para el proyecto (Iconos de notificación)
+  /// STREAM: Escucha mensajes NO LEÍDOS para el proyecto
   Stream<List<FeedbackMessage>> getUnreadFeedbackStream(String projectId) {
     return _db
         .collection('projects')
         .doc(projectId)
         .collection('feedback')
         .where('isRead', isEqualTo: false)
-        .where(
-          'author',
-          isNotEqualTo: 'Cliente',
-        ) // Solo lo que escribe el Admin
+        .where('author', isNotEqualTo: 'Cliente')
         .snapshots()
         .map((snapshot) {
           return snapshot.docs.map((doc) {
@@ -88,7 +84,7 @@ class FeedbackNotificationService {
         });
   }
 
-  /// Marca como leídos los mensajes de un hito (Batch update)
+  /// Marca como leídos los mensajes de un hito
   Future<void> markMilestoneFeedbackAsRead(
     String projectId,
     String milestoneTitle,

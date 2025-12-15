@@ -12,7 +12,6 @@ import 'package:clarity_software/widgets/neon_card.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:intl/intl.dart';
 
 class DocumentsScreen extends StatefulWidget {
   final Project project;

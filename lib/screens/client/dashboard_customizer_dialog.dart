@@ -14,50 +14,51 @@ class DashboardCustomizerDialog extends StatefulWidget {
 }
 
 class _DashboardCustomizerDialogState extends State<DashboardCustomizerDialog> {
-  late bool _showCharts;
-  late bool _showStats;
-  late bool _showProjects;
-  // --- NUEVO: Estado para el calendario ---
-  late bool _showCalendar;
+  // Estado local para los switches
+  late Map<String, bool> _visibility;
+  // Estado local para el orden
+  late List<String> _orderedIds;
+
+  final Map<String, String> _labels = {
+    'shortcuts': 'Accesos Rápidos (Citas)',
+    'charts': 'Gráficos de Progreso',
+    'stats': 'Estadísticas Globales',
+    'calendar': 'Agenda y Calendario',
+    'projects': 'Lista de Proyectos',
+  };
+
+  // ignore: unused_field
+  final Map<String, IconData> _icons = {
+    'shortcuts': Icons.bolt,
+    'charts': Icons.pie_chart,
+    'stats': Icons.bar_chart,
+    'calendar': Icons.calendar_today,
+    'projects': Icons.folder_open,
+  };
 
   @override
   void initState() {
     super.initState();
-    _showCharts = widget.initialConfig.showCharts;
-    _showStats = widget.initialConfig.showStats;
-    _showProjects = widget.initialConfig.showProjects;
-    // --- NUEVO ---
-    _showCalendar = widget.initialConfig.showCalendar;
+    _visibility = {
+      'shortcuts': widget.initialConfig.showShortcuts,
+      'charts': widget.initialConfig.showCharts,
+      'stats': widget.initialConfig.showStats,
+      'calendar': widget.initialConfig.showCalendar,
+      'projects': widget.initialConfig.showProjects,
+    };
+    _orderedIds = List.from(widget.initialConfig.layout);
   }
 
   void _save() {
     final newConfig = widget.initialConfig.copyWith(
-      showCharts: _showCharts,
-      showStats: _showStats,
-      showProjects: _showProjects,
-      // --- NUEVO ---
-      showCalendar: _showCalendar,
+      showShortcuts: _visibility['shortcuts'],
+      showCharts: _visibility['charts'],
+      showStats: _visibility['stats'],
+      showCalendar: _visibility['calendar'],
+      showProjects: _visibility['projects'],
+      layout: _orderedIds,
     );
     Navigator.pop(context, newConfig);
-  }
-
-  Widget _buildSwitch(
-    String title,
-    String subtitle,
-    bool value,
-    ValueChanged<bool> onChanged,
-    IconData icon,
-  ) {
-    return SwitchListTile(
-      title: Text(title, style: const TextStyle(color: Colors.white)),
-      subtitle: Text(subtitle, style: const TextStyle(color: Colors.white54)),
-      value: value,
-      onChanged: onChanged,
-      secondary: Icon(icon, color: AppColors.cyberBlue),
-      activeColor: AppColors.cyberBlue,
-      tileColor: AppColors.cardBackground.withValues(alpha: 0.5),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-    );
   }
 
   @override
@@ -65,49 +66,50 @@ class _DashboardCustomizerDialogState extends State<DashboardCustomizerDialog> {
     return AlertDialog(
       backgroundColor: AppColors.cardBackground,
       title: const Text(
-        'Personalizar Dashboard',
+        'Organizar Dashboard',
         style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
       ),
-      content: SingleChildScrollView(
+      content: SizedBox(
+        width: double.maxFinite,
+        height: 400, // Altura fija para permitir scroll interno
         child: Column(
-          mainAxisSize: MainAxisSize.min,
           children: [
             const Text(
-              'Activa o desactiva los módulos que deseas ver en tu pantalla de inicio.',
+              'Arrastra los bloques para reordenarlos y usa el switch para ocultarlos.',
               style: TextStyle(color: Colors.white70, fontSize: 13),
             ),
             const SizedBox(height: 20),
-            _buildSwitch(
-              'Gráficos de Progreso',
-              'Visualización circular y de barras',
-              _showCharts,
-              (v) => setState(() => _showCharts = v),
-              Icons.pie_chart_outline,
-            ),
-            const SizedBox(height: 10),
-            _buildSwitch(
-              'Estadísticas Rápidas',
-              'Estado, Presupuesto, Equipo',
-              _showStats,
-              (v) => setState(() => _showStats = v),
-              Icons.bar_chart,
-            ),
-            const SizedBox(height: 10),
-            _buildSwitch(
-              'Lista de Proyectos',
-              'Tarjetas detalladas de tus proyectos',
-              _showProjects,
-              (v) => setState(() => _showProjects = v),
-              Icons.folder_open,
-            ),
-            // --- NUEVO SWITCH DE CALENDARIO ---
-            const SizedBox(height: 10),
-            _buildSwitch(
-              'Agenda y Calendario',
-              'Próximos hitos y enlace a Google Calendar',
-              _showCalendar,
-              (v) => setState(() => _showCalendar = v),
-              Icons.calendar_month,
+            Expanded(
+              child: ReorderableListView(
+                onReorder: (oldIndex, newIndex) {
+                  setState(() {
+                    if (newIndex > oldIndex) newIndex -= 1;
+                    final String item = _orderedIds.removeAt(oldIndex);
+                    _orderedIds.insert(newIndex, item);
+                  });
+                },
+                children: [
+                  for (final id in _orderedIds)
+                    ListTile(
+                      key: ValueKey(id),
+                      leading: Icon(Icons.drag_handle, color: Colors.white30),
+                      title: Text(
+                        _labels[id]!,
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                      trailing: Switch(
+                        value: _visibility[id]!,
+                        activeThumbColor: AppColors.accentMagenta,
+                        onChanged: (val) {
+                          setState(() {
+                            _visibility[id] = val;
+                          });
+                        },
+                      ),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                ],
+              ),
             ),
           ],
         ),
@@ -123,10 +125,10 @@ class _DashboardCustomizerDialogState extends State<DashboardCustomizerDialog> {
         ElevatedButton(
           onPressed: _save,
           style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.accentMagenta,
-            foregroundColor: Colors.white,
+            backgroundColor: AppColors.cyberBlue,
+            foregroundColor: Colors.black,
           ),
-          child: const Text('Guardar Cambios'),
+          child: const Text('Guardar Orden'),
         ),
       ],
     );

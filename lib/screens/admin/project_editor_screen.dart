@@ -244,12 +244,12 @@ class _ProjectEditorScreenState extends State<ProjectEditorScreen> {
                       color: AppColors.cardBackground,
                       margin: const EdgeInsets.only(bottom: 8),
                       shape: RoundedRectangleBorder(
-                        side: BorderSide(color: color.withOpacity(0.5)),
+                        side: BorderSide(color: color.withValues(alpha: 0.5)),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: ListTile(
                         leading: CircleAvatar(
-                          backgroundColor: color.withOpacity(0.2),
+                          backgroundColor: color.withValues(alpha: 0.2),
                           child: Icon(Icons.flag, color: color, size: 20),
                         ),
                         title: Text(
