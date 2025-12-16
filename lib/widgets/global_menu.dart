@@ -1,17 +1,11 @@
 // lib/widgets/global_menu.dart
-import 'package:clarity_software/screens/client/global_timeline_screen.dart';
 import 'package:clarity_software/screens/client/notifications_screen.dart';
-import 'package:clarity_software/screens/client/overview_screen.dart';
 import 'package:clarity_software/screens/login_screen.dart';
 import 'package:clarity_software/theme/app_colors.dart';
 import 'package:flutter/material.dart';
-
-// --- INICIO DE CAMBIOS ---
-// Importamos el nuevo servicio de Auth
 import 'package:clarity_software/services/auth_service.dart';
-// --- FIN DE CAMBIOS ---
 
-// Enum para identificar la pantalla actual y mostrar/ocultar opciones
+// Enum para identificar la pantalla actual
 enum AppScreen { overview, timeline, projectDetails, notifications, admin }
 
 class GlobalAppBarMenu extends StatelessWidget {
@@ -26,141 +20,71 @@ class GlobalAppBarMenu extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(right: 8.0),
       child: PopupMenuButton<String>(
+        icon: const Icon(Icons.more_vert, color: Colors.white),
+        color: AppColors.cardBackground,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+        ),
         onSelected: (value) {
-          // Lógica de navegación centralizada
           switch (value) {
             case 'logout':
-              // --- INICIO DE CAMBIOS ---
-              // Limpiamos el estado de autenticación
               AuthService().signOut();
-              // --- FIN DE CAMBIOS ---
               Navigator.of(context).pushAndRemoveUntil(
                 MaterialPageRoute(builder: (context) => const LoginScreen()),
                 (Route<dynamic> route) => false,
               );
               break;
             case 'notifications':
+            // Ahora la opción de Admin también lleva aquí
+            case 'admin_notifications':
               Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (context) => const NotificationsScreen(),
                 ),
               );
               break;
-            case 'view_timeline':
-              Navigator.of(context).pushReplacement(
-                MaterialPageRoute(
-                  builder: (context) => const GlobalTimelineScreen(),
-                ),
-              );
-              break;
-            case 'view_dashboard':
-              Navigator.of(context).pushReplacement(
-                MaterialPageRoute(builder: (context) => const OverviewScreen()),
-              );
-              break;
-            case 'admin_notifications':
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Notificaciones de Admin (próximamente).'),
-                  backgroundColor: AppColors.cyberBlue,
-                ),
-              );
-              break;
           }
         },
         itemBuilder: (BuildContext context) {
-          // Lista de widgets para el menú
           List<PopupMenuEntry<String>> menuItems = [];
 
-          // --- Lógica condicional para Admin ---
-          if (currentScreen == AppScreen.admin) {
+          // 1. Notificaciones (Común para Admin y Cliente)
+          if (currentScreen != AppScreen.notifications) {
+            final isNotifAdmin = currentScreen == AppScreen.admin;
             menuItems.add(
               PopupMenuItem<String>(
-                value: 'admin_notifications',
+                value: isNotifAdmin ? 'admin_notifications' : 'notifications',
                 child: Row(
                   children: [
                     Icon(
                       Icons.notifications_outlined,
                       color: textTheme.bodyLarge?.color,
+                      size: 20,
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 12),
                     const Text('Notificaciones'),
                   ],
                 ),
               ),
             );
           }
-          // --- Lógica condicional para Cliente ---
-          else {
-            // 1. Añadir "Notificaciones" (si no estamos en esa pantalla)
-            if (currentScreen != AppScreen.notifications) {
-              menuItems.add(
-                PopupMenuItem<String>(
-                  value: 'notifications',
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.notifications_outlined,
-                        color: textTheme.bodyLarge?.color,
-                      ),
-                      const SizedBox(width: 8),
-                      const Text('Notificaciones'),
-                    ],
-                  ),
-                ),
-              );
-            }
 
-            // 2. Añadir "Cambiar Vista"
-            if (currentScreen == AppScreen.overview ||
-                currentScreen == AppScreen.projectDetails) {
-              // Si estamos en Dashboard o Detalles, mostramos "Ir a Timeline"
-              menuItems.add(
-                PopupMenuItem<String>(
-                  value: 'view_timeline',
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.timeline_outlined,
-                        color: textTheme.bodyLarge?.color,
-                      ),
-                      const SizedBox(width: 8),
-                      const Text('Cambiar a Vista Timeline'),
-                    ],
-                  ),
-                ),
-              );
-            } else if (currentScreen == AppScreen.timeline ||
-                currentScreen == AppScreen.notifications) {
-              // Si estamos en Timeline o Notificaciones, mostramos "Ir a Dashboard"
-              menuItems.add(
-                PopupMenuItem<String>(
-                  value: 'view_dashboard',
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.dashboard_outlined,
-                        color: textTheme.bodyLarge?.color,
-                      ),
-                      const SizedBox(width: 8),
-                      const Text('Cambiar a Vista Dashboard'),
-                    ],
-                  ),
-                ),
-              );
-            }
-          }
-
-          // 3. Añadir Separador y "Cerrar Sesión" (siempre)
+          // 2. Separador
           menuItems.add(const PopupMenuDivider());
+
+          // 3. Cerrar Sesión (Siempre visible)
           menuItems.add(
-            PopupMenuItem<String>(
+            const PopupMenuItem<String>(
               value: 'logout',
               child: Row(
                 children: [
-                  Icon(Icons.logout, color: textTheme.bodyLarge?.color),
-                  const SizedBox(width: 8),
-                  const Text('Cerrar Sesión'),
+                  Icon(Icons.logout, color: AppColors.accentRed, size: 20),
+                  SizedBox(width: 12),
+                  Text(
+                    'Cerrar Sesión',
+                    style: TextStyle(color: AppColors.accentRed),
+                  ),
                 ],
               ),
             ),

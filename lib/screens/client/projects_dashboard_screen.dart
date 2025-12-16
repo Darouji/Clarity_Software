@@ -8,11 +8,12 @@ import 'package:clarity_software/models/feedback_message.dart';
 import 'package:clarity_software/services/project_service.dart';
 import 'package:clarity_software/services/view_status_service.dart';
 import 'package:clarity_software/theme/app_colors.dart';
+// Importamos ambos gráficos
 import 'package:clarity_software/widgets/bar_chart.dart';
+import 'package:clarity_software/widgets/pie_chart.dart';
 import 'package:clarity_software/widgets/global_menu.dart';
 import 'package:clarity_software/widgets/info_block.dart';
 import 'package:clarity_software/widgets/neon_card.dart';
-import 'package:clarity_software/widgets/pie_chart.dart';
 import 'package:flutter/material.dart';
 
 Color getProjectColorByProgress(double progress) {
@@ -37,31 +38,6 @@ class _ProjectsDashboardScreenState extends State<ProjectsDashboardScreen> {
   final FeedbackNotificationService _feedbackService =
       FeedbackNotificationService();
 
-  final PageController _pageController = PageController();
-  int _currentChartPage = 0;
-
-  @override
-  void dispose() {
-    _pageController.dispose();
-    super.dispose();
-  }
-
-  Widget _buildDot(int index) {
-    bool isActive = index == _currentChartPage;
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 150),
-      margin: const EdgeInsets.symmetric(horizontal: 4.0),
-      height: 8.0,
-      width: isActive ? 24.0 : 8.0,
-      decoration: BoxDecoration(
-        color: isActive
-            ? AppColors.cyberBlue
-            : AppColors.grey.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(5.0),
-      ),
-    );
-  }
-
   String _formatLastUpdate(DateTime lastUpdate) {
     final Duration difference = DateTime.now().difference(lastUpdate);
     if (difference.inDays > 0) {
@@ -78,7 +54,6 @@ class _ProjectsDashboardScreenState extends State<ProjectsDashboardScreen> {
     final theme = Theme.of(context);
     final user = _authService.currentUser;
     const double appBarHeight = 65.0;
-    // Padding superior dinámico para evitar que el banner tape el contenido
     final double topContentPadding =
         MediaQuery.of(context).padding.top + appBarHeight + 20;
 
@@ -105,7 +80,7 @@ class _ProjectsDashboardScreenState extends State<ProjectsDashboardScreen> {
                     const Align(
                       alignment: Alignment(0.0, 0.2),
                       child: Text(
-                        'Mis Proyectos', // CAMBIO DE NOMBRE
+                        'Mis Proyectos',
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
@@ -153,25 +128,11 @@ class _ProjectsDashboardScreenState extends State<ProjectsDashboardScreen> {
           return ListView(
             padding: EdgeInsets.fromLTRB(16, topContentPadding, 16, 20),
             children: [
-              // --- MÓDULO DE GRÁFICOS ---
-              SizedBox(
-                height: 220,
-                child: PageView(
-                  controller: _pageController,
-                  onPageChanged: (int page) =>
-                      setState(() => _currentChartPage = page),
-                  children: [
-                    PieChart(projects: sortedProjects, size: 220),
-                    // Aseguramos que el segundo hijo sea BarChart
-                    BarChart(projects: sortedProjects, size: 220),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 10),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [_buildDot(0), _buildDot(1)],
-              ),
+              // --- MÓDULO DE GRÁFICOS AISLADO ---
+              // Al usar un widget separado, su setState interno NO reconstruye
+              // toda la pantalla, evitando que el StreamBuilder reinicie la vista.
+              _ProjectChartsCarousel(projects: sortedProjects),
+
               const SizedBox(height: 30),
 
               // --- LISTA DE PROYECTOS ---
@@ -331,6 +292,80 @@ class _ProjectsDashboardScreenState extends State<ProjectsDashboardScreen> {
           );
         },
       ),
+    );
+  }
+}
+
+// --- WIDGET AISLADO PARA EL CARRUSEL DE GRÁFICOS ---
+// Esto soluciona el bug del "rebote" al cambiar de gráfico.
+class _ProjectChartsCarousel extends StatefulWidget {
+  final List<Project> projects;
+
+  const _ProjectChartsCarousel({required this.projects});
+
+  @override
+  State<_ProjectChartsCarousel> createState() => _ProjectChartsCarouselState();
+}
+
+class _ProjectChartsCarouselState extends State<_ProjectChartsCarousel> {
+  final PageController _pageController = PageController();
+  int _currentChartPage = 0;
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  Widget _buildDot(int index) {
+    bool isActive = index == _currentChartPage;
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 150),
+      margin: const EdgeInsets.symmetric(horizontal: 4.0),
+      height: 8.0,
+      width: isActive ? 24.0 : 8.0,
+      decoration: BoxDecoration(
+        color: isActive
+            ? AppColors.cyberBlue
+            : AppColors.grey.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(5.0),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        SizedBox(
+          height: 220,
+          child: PageView(
+            controller: _pageController,
+            onPageChanged: (int page) {
+              // Este setState ahora solo reconstruye _ProjectChartsCarousel
+              // y no afecta al StreamBuilder padre.
+              setState(() => _currentChartPage = page);
+            },
+            children: [
+              PieChart(
+                key: const ValueKey('pieChart'),
+                projects: widget.projects,
+                size: 220,
+              ),
+              BarChart(
+                key: const ValueKey('barChart'),
+                projects: widget.projects,
+                size: 220,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [_buildDot(0), _buildDot(1)],
+        ),
+      ],
     );
   }
 }

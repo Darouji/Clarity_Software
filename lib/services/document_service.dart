@@ -27,6 +27,7 @@ class DocumentService {
   }
 
   /// Guardar un nuevo registro de documento
+  // AHORA: Toma solo 1 argumento que contiene toda la info (incluido projectId)
   Future<void> addDocument(ProjectDocument document) async {
     await _db
         .collection('projects')

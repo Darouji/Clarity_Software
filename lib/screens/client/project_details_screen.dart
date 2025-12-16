@@ -9,9 +9,10 @@ import 'package:flutter/material.dart';
 import 'package:clarity_software/widgets/global_menu.dart';
 import 'package:clarity_software/models/milestone.dart';
 import 'package:clarity_software/services/project_service.dart';
-// --- NUEVO IMPORT ---
 import 'package:clarity_software/screens/client/documents_screen.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:clarity_software/widgets/project_timeline_view.dart';
+import 'package:clarity_software/widgets/project_list_view.dart';
 
 class ProjectDetailsScreen extends StatefulWidget {
   final String? highlightMilestoneTitle;
@@ -34,6 +35,9 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
   late PageController _boardPageController;
   final ScrollController _scrollController = ScrollController();
   final GlobalKey _kanbanKey = GlobalKey();
+
+  String _currentView = 'Kanban';
+  final List<String> _viewOptions = ['Kanban', 'Timeline', 'Lista'];
 
   static const int _kanbanInitialPage = 5000;
   int _currentPageIndex = 0;
@@ -156,6 +160,10 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
     final appBarTextStyle = theme.appBarTheme.titleTextStyle;
     const double appBarHeight = 80.0;
 
+    // CORRECCIÓN: Padding superior dinámico para evitar solapamiento con banner
+    final double safeTopPadding =
+        MediaQuery.of(context).padding.top + appBarHeight + 20;
+
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: PreferredSize(
@@ -217,9 +225,68 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
             controller: _scrollController,
             padding: EdgeInsets.zero,
             children: [
-              const SizedBox(height: appBarHeight),
+              // Espacio superior seguro
+              SizedBox(height: safeTopPadding),
+
+              // --- CORRECCIÓN: Selector de Vistas Full Width ---
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 55, 16, 0),
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Container(
+                  width: double.infinity, // Ocupa todo el ancho
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.cardBackground,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                        color: AppColors.cyberBlue.withValues(alpha: 0.5)),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: _currentView,
+                      isExpanded: true, // Expande el contenido interno
+                      dropdownColor: AppColors.cardBackground,
+                      icon: const Icon(Icons.arrow_drop_down,
+                          color: AppColors.cyberBlue),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                      items: _viewOptions.map((String view) {
+                        return DropdownMenuItem<String>(
+                          value: view,
+                          child: Row(
+                            children: [
+                              Icon(
+                                view == 'Kanban'
+                                    ? Icons.view_kanban
+                                    : view == 'Timeline'
+                                        ? Icons.timeline
+                                        : Icons.list,
+                                color: AppColors.cyberBlue,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 12),
+                              Text(view),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (String? newValue) {
+                        if (newValue != null) {
+                          setState(() => _currentView = newValue);
+                        }
+                      },
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Bloque de Información General
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: NeonCard(
                   glowColor: AppColors.tonalBlue,
                   child: Column(
@@ -278,7 +345,6 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                 ),
               ),
 
-              // --- NUEVO: Acceso al Centro de Documentación ---
               Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 16.0,
@@ -314,70 +380,85 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                 ),
               ),
 
-              // -----------------------------------------------
-              SizedBox(
-                height: 60,
-                child: PageView.builder(
-                  controller: _titlePageController,
-                  itemCount: 10000,
-                  onPageChanged: (int index) {
-                    final int realIndex = index % _columnTitles.length;
-                    if (realIndex != _currentPageIndex) {
-                      setState(() {
-                        _currentPageIndex = realIndex;
-                      });
-                    }
-                  },
-                  itemBuilder: (context, index) {
-                    final int realIndex = index % _columnTitles.length;
-                    final bool isSelected = _currentPageIndex == realIndex;
-                    final title = _columnTitles[realIndex];
-                    final color = _getBorderColor(title);
+              // --- VISTAS DINÁMICAS ---
 
-                    return InkWell(
-                      onTap: () {
-                        _scrollToPage(index);
-                      },
-                      child: Center(
-                        child: AnimatedScale(
-                          scale: isSelected ? 1.15 : 1.0,
-                          duration: const Duration(milliseconds: 200),
-                          child: Text(
-                            title,
-                            style: TextStyle(
-                              fontWeight: isSelected
-                                  ? FontWeight.bold
-                                  : FontWeight.normal,
-                              color: isSelected ? color : AppColors.grey,
-                              fontSize: 15,
-                              shadows: isSelected
-                                  ? [
-                                      Shadow(
-                                        color: color.withAlpha(
-                                          (255 * 0.7).round(),
+              if (_currentView == 'Kanban') ...[
+                SizedBox(
+                  height: 60,
+                  child: PageView.builder(
+                    controller: _titlePageController,
+                    itemCount: 10000,
+                    onPageChanged: (int index) {
+                      final int realIndex = index % _columnTitles.length;
+                      if (realIndex != _currentPageIndex) {
+                        setState(() {
+                          _currentPageIndex = realIndex;
+                        });
+                      }
+                    },
+                    itemBuilder: (context, index) {
+                      final int realIndex = index % _columnTitles.length;
+                      final bool isSelected = _currentPageIndex == realIndex;
+                      final title = _columnTitles[realIndex];
+                      final color = _getBorderColor(title);
+
+                      return InkWell(
+                        onTap: () {
+                          _scrollToPage(index);
+                        },
+                        child: Center(
+                          child: AnimatedScale(
+                            scale: isSelected ? 1.15 : 1.0,
+                            duration: const Duration(milliseconds: 200),
+                            child: Text(
+                              title,
+                              style: TextStyle(
+                                fontWeight: isSelected
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
+                                color: isSelected ? color : AppColors.grey,
+                                fontSize: 15,
+                                shadows: isSelected
+                                    ? [
+                                        Shadow(
+                                          color: color.withAlpha(
+                                            (255 * 0.7).round(),
+                                          ),
+                                          blurRadius: 8,
                                         ),
-                                        blurRadius: 8,
-                                      ),
-                                    ]
-                                  : [],
+                                      ]
+                                    : [],
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                    );
-                  },
+                      );
+                    },
+                  ),
                 ),
-              ),
+                SizedBox(
+                  key: _kanbanKey,
+                  height: 450,
+                  child: KanbanBoard(
+                    project: project,
+                    controller: _boardPageController,
+                    highlightMilestoneTitle: widget.highlightMilestoneTitle,
+                  ),
+                ),
+              ],
 
-              SizedBox(
-                key: _kanbanKey,
-                height: 450,
-                child: KanbanBoard(
-                  project: project,
-                  controller: _boardPageController,
-                  highlightMilestoneTitle: widget.highlightMilestoneTitle,
+              if (_currentView == 'Timeline')
+                SizedBox(
+                  height: 500,
+                  child: ProjectTimelineView(project: project),
                 ),
-              ),
+
+              if (_currentView == 'Lista')
+                SizedBox(
+                  height: 500,
+                  child: ProjectListView(project: project),
+                ),
+
               const SizedBox(height: 40),
             ],
           );

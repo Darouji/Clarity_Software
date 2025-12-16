@@ -50,17 +50,17 @@ class AppTheme {
     scaffoldBackgroundColor: AppColors.lightBackground,
     primaryColor: AppColors.accentMagenta,
     cardColor: AppColors.lightSurface,
-    appBarTheme: AppBarTheme(
+    appBarTheme: const AppBarTheme(
       backgroundColor: AppColors.lightAppBarBackground,
       elevation: 0,
       centerTitle: true,
-      titleTextStyle: const TextStyle(
+      titleTextStyle: TextStyle(
         fontFamily: 'Roboto',
         color: AppColors.darkText,
         fontSize: 20,
         fontWeight: FontWeight.bold,
       ),
-      iconTheme: const IconThemeData(color: AppColors.darkText),
+      iconTheme: IconThemeData(color: AppColors.darkText),
     ),
     cardTheme: CardThemeData(
       color: AppColors.lightSurface,

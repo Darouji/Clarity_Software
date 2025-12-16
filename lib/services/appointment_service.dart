@@ -3,75 +3,55 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:clarity_software/models/appointment.dart';
 
 class AppointmentService {
-  static final AppointmentService _instance = AppointmentService._internal();
-  factory AppointmentService() => _instance;
-  AppointmentService._internal();
-
   final FirebaseFirestore _db = FirebaseFirestore.instance;
-  final String _collection = 'appointments';
 
-  // --- CREAR SOLICITUD ---
-  Future<void> requestAppointment(Appointment appointment) async {
-    // Dejamos que Firestore genere el ID si viene vacío
-    final docRef = _db.collection(_collection).doc();
-
-    final newAppointment = Appointment(
-      id: docRef.id,
-      clientId: appointment.clientId,
-      projectId: appointment.projectId,
-      reason: appointment.reason,
-      requestedDate: appointment.requestedDate,
-      status: AppointmentStatus.pending,
-      createdAt: DateTime.now(),
-      adminNotes: null,
-    );
-
-    await docRef.set(newAppointment.toJson());
+  // Obtener todas las citas (Para Admin)
+  Stream<List<Appointment>> getAllAppointmentsStream() {
+    return _db
+        .collection('appointments')
+        .orderBy('date', descending: false)
+        .snapshots()
+        .map(
+          (snapshot) => snapshot.docs
+              .map((doc) => Appointment.fromJson(doc.data()))
+              .toList(),
+        );
   }
 
-  // --- LEER (Para el Cliente) ---
-  Stream<List<Appointment>> getAppointmentsForClient(String clientId) {
+  // Obtener citas de un cliente específico
+  Stream<List<Appointment>> getClientAppointmentsStream(String clientId) {
     return _db
-        .collection(_collection)
+        .collection('appointments')
         .where('clientId', isEqualTo: clientId)
-        .orderBy('requestedDate', descending: false)
+        .orderBy('date', descending: false)
         .snapshots()
-        .map((snapshot) {
-          return snapshot.docs.map((doc) {
-            final data = doc.data();
-            data['id'] = doc.id;
-            return Appointment.fromJson(data);
-          }).toList();
-        });
+        .map(
+          (snapshot) => snapshot.docs
+              .map((doc) => Appointment.fromJson(doc.data()))
+              .toList(),
+        );
   }
 
-  // --- LEER (Para el Admin - Pendientes) ---
-  Stream<List<Appointment>> getPendingAppointments() {
-    return _db
-        .collection(_collection)
-        .where('status', isEqualTo: AppointmentStatus.pending.toString())
-        .orderBy('requestedDate', descending: false)
-        .snapshots()
-        .map((snapshot) {
-          return snapshot.docs.map((doc) {
-            final data = doc.data();
-            data['id'] = doc.id;
-            return Appointment.fromJson(data);
-          }).toList();
-        });
+  // Crear una nueva cita
+  Future<void> createAppointment(Appointment appointment) async {
+    await _db
+        .collection('appointments')
+        .doc(appointment.id)
+        .set(appointment.toJson());
   }
 
-  // --- ACTUALIZAR ESTADO (Aprobar/Rechazar) ---
+  // Actualizar estado (Aprobar/Rechazar)
   Future<void> updateAppointmentStatus(
-    String id,
-    AppointmentStatus status, {
-    String? notes,
-  }) async {
-    final Map<String, dynamic> updates = {'status': status.toString()};
-    if (notes != null) {
-      updates['adminNotes'] = notes;
-    }
+    String appointmentId,
+    String newStatus,
+  ) async {
+    await _db.collection('appointments').doc(appointmentId).update({
+      'status': newStatus,
+    });
+  }
 
-    await _db.collection(_collection).doc(id).update(updates);
+  // Eliminar cita
+  Future<void> deleteAppointment(String appointmentId) async {
+    await _db.collection('appointments').doc(appointmentId).delete();
   }
 }

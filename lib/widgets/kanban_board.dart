@@ -7,7 +7,8 @@ import 'package:clarity_software/widgets/neon_card.dart';
 import 'package:flutter/material.dart';
 import 'package:clarity_software/models/feedback_message.dart';
 import 'package:clarity_software/services/feedback_notification_service.dart';
-import 'package:clarity_software/services/project_service.dart';
+// IMPORTAMOS EL CHAT
+import 'package:clarity_software/screens/shared/chat_screen.dart';
 
 class _KanbanMilestoneCard extends StatefulWidget {
   final Project project;
@@ -29,15 +30,14 @@ class _KanbanMilestoneCard extends StatefulWidget {
 class _KanbanMilestoneCardState extends State<_KanbanMilestoneCard> {
   final FeedbackNotificationService _feedbackService =
       FeedbackNotificationService();
-  final ProjectService _projectService = ProjectService();
-  final TextEditingController _feedbackController = TextEditingController();
+
+  // Eliminada variable _projectService no utilizada
 
   bool _isExpanded = false;
 
   @override
   void initState() {
     super.initState();
-    // Auto-expandir si venimos de una notificación
     if (widget.highlightMilestoneTitle == widget.milestone.title) {
       _isExpanded = true;
       _markAsRead();
@@ -60,74 +60,15 @@ class _KanbanMilestoneCardState extends State<_KanbanMilestoneCard> {
     });
   }
 
-  void _submitFeedback(FeedbackType type) async {
-    if (!mounted) return;
+  void _openChatWithContext(bool isConform) {
+    final String contextMessage = isConform
+        ? 'Estoy CONFORME con el hito: "${widget.milestone.title}".'
+        : 'NO estoy conforme con el hito: "${widget.milestone.title}". Motivo: ';
 
-    if (_feedbackController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Por favor, escribe un mensaje.'),
-          backgroundColor: AppColors.accentRed,
-        ),
-      );
-      return;
-    }
-
-    // 1. Guardar Feedback en Firestore
-    await _feedbackService.addFeedback(
-      projectId: widget.project.id,
-      milestoneTitle: widget.milestone.title,
-      message: _feedbackController.text,
-      type: type,
-      author: 'Cliente',
-    );
-
-    // 2. Actualizar estado del Hito en Firestore
-    if (type == FeedbackType.approval) {
-      final updatedMilestone = Milestone(
-        title: widget.milestone.title,
-        progress: 1.0,
-        status: MilestoneStatus.completed,
-        responsible: widget.milestone.responsible,
-        startDate: widget.milestone.startDate,
-        deadline: widget.milestone.deadline,
-        fase: widget.milestone.fase,
-      );
-
-      final updatedMilestones = widget.project.milestones.map((m) {
-        return m.title == widget.milestone.title ? updatedMilestone : m;
-      }).toList();
-
-      final updatedProject = Project(
-        clientId: widget.project.clientId,
-        id: widget.project.id,
-        name: widget.project.name,
-        description: widget.project.description,
-        budget: widget.project.budget,
-        team: widget.project.team,
-        technologies: widget.project.technologies,
-        milestones: updatedMilestones,
-        lastUpdate: DateTime.now(),
-      );
-
-      await _projectService.saveProject(updatedProject);
-    }
-
-    _feedbackController.clear();
-    // No necesitamos recargar historial manual, el StreamBuilder lo hará
-    setState(() {
-      _isExpanded = false;
-    });
-
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          type == FeedbackType.approval
-              ? 'Hito aprobado y actualizado.'
-              : 'Cambios solicitados.',
-        ),
-        backgroundColor: AppColors.accentGreen,
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ChatScreen(initialMessage: contextMessage),
       ),
     );
   }
@@ -252,36 +193,8 @@ class _KanbanMilestoneCardState extends State<_KanbanMilestoneCard> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Divider(color: AppColors.grey),
-          const SizedBox(height: 8),
-          const Text(
-            'Enviar Retroalimentación:',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _feedbackController,
-            maxLines: 3,
-            decoration: InputDecoration(
-              hintText: 'Escribe tu mensaje...',
-              filled: true,
-              fillColor: AppColors.primaryBackground.withAlpha(
-                (255 * 0.5).round(),
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(
-                  color: AppColors.grey.withAlpha((255 * 0.5).round()),
-                ),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(
-                  color: AppColors.grey.withAlpha((255 * 0.5).round()),
-                ),
-              ),
-            ),
-          ),
           const SizedBox(height: 12),
+
           Row(
             children: [
               Expanded(
@@ -289,10 +202,11 @@ class _KanbanMilestoneCardState extends State<_KanbanMilestoneCard> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.accentGreen,
                     foregroundColor: AppColors.cardBlack,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
-                  onPressed: () => _submitFeedback(FeedbackType.approval),
+                  onPressed: () => _openChatWithContext(true),
                   child: const Text(
-                    'Aprobar Hito',
+                    'CONFORME',
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),
@@ -303,16 +217,18 @@ class _KanbanMilestoneCardState extends State<_KanbanMilestoneCard> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.accentRed,
                     foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
-                  onPressed: () => _submitFeedback(FeedbackType.changeRequest),
+                  onPressed: () => _openChatWithContext(false),
                   child: const Text(
-                    'Solicitar Cambios',
+                    'NO CONFORME',
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),
               ),
             ],
           ),
+
           if (feedbackHistory.isNotEmpty) ...[
             const SizedBox(height: 16),
             const Divider(color: AppColors.grey),

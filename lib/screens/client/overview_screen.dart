@@ -16,6 +16,7 @@ import 'package:clarity_software/services/auth_service.dart';
 import 'package:clarity_software/models/client_user.dart';
 import 'package:clarity_software/widgets/calendar_widget.dart';
 import 'package:clarity_software/services/preference_service.dart';
+import 'package:clarity_software/screens/shared/chat_screen.dart';
 
 class OverviewScreen extends StatefulWidget {
   const OverviewScreen({super.key});
@@ -33,7 +34,6 @@ class _OverviewScreenState extends State<OverviewScreen> {
   ClientUser? _currentUser;
   bool _isEditMode = false;
 
-  // IDs de los bloques que deben ser CUADRADOS (Tiles)
   final Set<String> _smallTiles = {
     'shortcuts',
     'tile_projects',
@@ -86,7 +86,10 @@ class _OverviewScreenState extends State<OverviewScreen> {
             onPressed: () async {
               if (nameController.text.isNotEmpty) {
                 await _userService.updateUserName(user.id, nameController.text);
-                if (mounted) Navigator.pop(context);
+
+                // CORRECCIÓN FINAL: Chequeo explícito de mounted
+                if (!mounted) return;
+                Navigator.of(context).pop();
               }
             },
             style: ElevatedButton.styleFrom(
@@ -130,8 +133,9 @@ class _OverviewScreenState extends State<OverviewScreen> {
     List<Project> projects,
     int activeCount,
   ) {
-    if (!_isIdVisible(id, config) && !_isEditMode)
+    if (!_isIdVisible(id, config) && !_isEditMode) {
       return const SizedBox.shrink();
+    }
 
     switch (id) {
       case 'calendar':
@@ -182,12 +186,7 @@ class _OverviewScreenState extends State<OverviewScreen> {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const ProjectsDashboardScreen(),
-              ),
-            );
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Selecciona un proyecto para ver el chat'),
+                builder: (context) => const ChatScreen(),
               ),
             );
           },
@@ -262,7 +261,6 @@ class _OverviewScreenState extends State<OverviewScreen> {
     _preferenceService.saveDashboardConfig(newConfig);
   }
 
-  // --- LÓGICA DE CONSTRUCCIÓN DEL LAYOUT ---
   List<Widget> _buildViewLayout(
     List<String> layout,
     DashboardConfig config,
@@ -274,7 +272,6 @@ class _OverviewScreenState extends State<OverviewScreen> {
     while (i < layout.length) {
       String currentId = layout[i];
 
-      // Si está oculto, saltamos
       if (!_isIdVisible(currentId, config)) {
         i++;
         continue;
@@ -283,7 +280,6 @@ class _OverviewScreenState extends State<OverviewScreen> {
       bool isSmall = _smallTiles.contains(currentId);
 
       if (isSmall) {
-        // Buscar el siguiente visible
         String? nextId;
         int nextIndex = i + 1;
         while (nextIndex < layout.length) {
@@ -295,14 +291,12 @@ class _OverviewScreenState extends State<OverviewScreen> {
         }
 
         if (nextId != null && _smallTiles.contains(nextId)) {
-          // --- PAR: FILA DE 2 TILES CUADRADOS ---
           widgets.add(
             Padding(
               padding: const EdgeInsets.only(bottom: 16.0),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Forzamos AspectRatio 1:1 para que sean cuadrados
                   Expanded(
                     child: AspectRatio(
                       aspectRatio: 1,
@@ -330,9 +324,8 @@ class _OverviewScreenState extends State<OverviewScreen> {
               ),
             ),
           );
-          i = nextIndex + 1; // Saltar al siguiente procesado
+          i = nextIndex + 1;
         } else {
-          // --- SOLO UNO: CUADRADO PERO SOLO ---
           widgets.add(
             Padding(
               padding: const EdgeInsets.only(bottom: 16.0),
@@ -358,7 +351,6 @@ class _OverviewScreenState extends State<OverviewScreen> {
           i++;
         }
       } else {
-        // --- BLOQUE GRANDE ---
         widgets.add(
           Padding(
             padding: const EdgeInsets.only(bottom: 16.0),
@@ -378,9 +370,9 @@ class _OverviewScreenState extends State<OverviewScreen> {
     required DashboardConfig config,
     required ValueKey<String> key,
   }) {
-    // Si no estamos en edición y es invisible, return vacío para mantener el índice
-    if (!_isEditMode && !isVisible)
+    if (!_isEditMode && !isVisible) {
       return SizedBox(key: ValueKey(id), height: 0);
+    }
 
     return Padding(
       key: ValueKey(id),
@@ -402,9 +394,8 @@ class _OverviewScreenState extends State<OverviewScreen> {
                   width: 30,
                   height: 30,
                   decoration: BoxDecoration(
-                    color: isVisible
-                        ? AppColors.accentRed
-                        : AppColors.accentGreen,
+                    color:
+                        isVisible ? AppColors.accentRed : AppColors.accentGreen,
                     shape: BoxShape.circle,
                     border: Border.all(color: Colors.white, width: 2),
                     boxShadow: [
@@ -434,20 +425,34 @@ class _OverviewScreenState extends State<OverviewScreen> {
     final double topPadding =
         MediaQuery.of(context).padding.top + appBarHeight + 20;
 
-    if (_currentUser == null)
+    if (_currentUser == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
 
     return StreamBuilder<DashboardConfig>(
       stream: _preferenceService.getDashboardConfigStream(),
       builder: (context, configSnapshot) {
         final config = configSnapshot.data ?? DashboardConfig();
-        final layout = List<String>.from(config.layout);
 
-        if (!layout.contains('shortcuts')) layout.add('shortcuts');
-        if (!layout.contains('tile_projects')) layout.add('tile_projects');
-        if (!layout.contains('tile_notifs')) layout.add('tile_notifs');
-        if (!layout.contains('tile_chat')) layout.add('tile_chat');
-        if (!layout.contains('tile_files')) layout.add('tile_files');
+        // Limpieza de duplicados
+        final uniqueLayout = config.layout.toSet().toList();
+        final layout = List<String>.from(uniqueLayout);
+
+        if (!layout.contains('shortcuts')) {
+          layout.add('shortcuts');
+        }
+        if (!layout.contains('tile_projects')) {
+          layout.add('tile_projects');
+        }
+        if (!layout.contains('tile_notifs')) {
+          layout.add('tile_notifs');
+        }
+        if (!layout.contains('tile_chat')) {
+          layout.add('tile_chat');
+        }
+        if (!layout.contains('tile_files')) {
+          layout.add('tile_files');
+        }
 
         return Scaffold(
           extendBodyBehindAppBar: true,
@@ -526,10 +531,11 @@ class _OverviewScreenState extends State<OverviewScreen> {
                               ),
                               onPressed: () {
                                 setState(() => _isEditMode = !_isEditMode);
-                                if (!_isEditMode)
+                                if (!_isEditMode) {
                                   _preferenceService.saveDashboardConfig(
                                     config.copyWith(layout: layout),
                                   );
+                                }
                               },
                             ),
                             if (!_isEditMode)
@@ -552,12 +558,10 @@ class _OverviewScreenState extends State<OverviewScreen> {
             ),
             builder: (context, snapshot) {
               final projects = snapshot.data ?? [];
-              final activeCount = projects
-                  .where((p) => p.status != 'Finalizado')
-                  .length;
+              final activeCount =
+                  projects.where((p) => p.status != 'Finalizado').length;
 
               if (_isEditMode) {
-                // MODO EDICIÓN: Lista vertical simple para reordenar
                 return ReorderableListView(
                   padding: EdgeInsets.fromLTRB(16.0, topPadding, 16.0, 30.0),
                   onReorder: (oldIndex, newIndex) {
@@ -587,7 +591,6 @@ class _OverviewScreenState extends State<OverviewScreen> {
                   ],
                 );
               } else {
-                // MODO VISTA: Grilla Dinámica 2x2
                 return ListView(
                   padding: EdgeInsets.fromLTRB(16.0, topPadding, 16.0, 30.0),
                   children: _buildViewLayout(

@@ -1,13 +1,9 @@
 // lib/screens/client/notifications_screen.dart
+import 'package:clarity_software/services/auth_service.dart';
 import 'package:clarity_software/theme/app_colors.dart';
 import 'package:clarity_software/widgets/neon_card.dart';
 import 'package:flutter/material.dart';
-
-// --- INICIO DE CAMBIOS ---
-// Importamos el nuevo widget
 import 'package:clarity_software/widgets/global_menu.dart';
-// Ya no necesitamos las otras importaciones de navegación
-// --- FIN DE CAMBIOS ---
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -17,9 +13,21 @@ class NotificationsScreen extends StatefulWidget {
 }
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
+  final AuthService _authService = AuthService();
+
+  bool _chatNotifications = true;
   bool _emailNotifications = true;
-  bool _weeklySummary = true;
-  bool _milestoneAlerts = true;
+  bool _fileNotifications = true;
+
+  late bool _isAdmin;
+
+  @override
+  void initState() {
+    super.initState();
+    // Determinamos si es Admin para adaptar los textos
+    final user = _authService.currentUser;
+    _isAdmin = user?.isAdmin ?? false;
+  }
 
   Widget _buildIcon(IconData icon, Color color) {
     return Container(
@@ -36,12 +44,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Notificaciones y Preferencias'),
-        // --- INICIO DE CAMBIOS: Menú de Acciones ---
+        title: Text(_isAdmin ? 'Configuración Admin' : 'Notificaciones'),
         actions: const [
           GlobalAppBarMenu(currentScreen: AppScreen.notifications),
         ],
-        // --- FIN DE CAMBIOS ---
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
@@ -51,41 +57,78 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               glowColor: AppColors.cyberBlue.withValues(alpha: 0.5),
               child: Column(
                 children: [
+                  // OPCIÓN 1: CHAT / MENSAJES
+                  SwitchListTile(
+                    secondary: _buildIcon(
+                      Icons.chat_bubble_outline,
+                      AppColors.cyberBlue,
+                    ),
+                    title: Text(
+                      _isAdmin
+                          ? 'Mensajes de Clientes'
+                          : 'Nuevos mensajes de chat',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    subtitle: Text(
+                      _isAdmin
+                          ? 'Avisos de chat y firmas pendientes'
+                          : 'Respuestas de soporte y firmas',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Colors.white54,
+                      ),
+                    ),
+                    value: _chatNotifications,
+                    onChanged: (bool value) =>
+                        setState(() => _chatNotifications = value),
+                    activeThumbColor: AppColors.cyberBlue,
+                  ),
+                  const Divider(),
+
+                  // OPCIÓN 2: EMAIL
                   SwitchListTile(
                     secondary: _buildIcon(
                       Icons.email_outlined,
-                      AppColors.cyberBlue, // Azul
+                      AppColors.accentMagenta,
                     ),
-                    title: const Text('Actualizaciones por Email'),
+                    title: const Text(
+                      'Notificaciones por Email',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    subtitle: const Text(
+                      'Alertas importantes del sistema',
+                      style: TextStyle(fontSize: 12, color: Colors.white54),
+                    ),
                     value: _emailNotifications,
                     onChanged: (bool value) =>
                         setState(() => _emailNotifications = value),
-                    activeThumbColor: AppColors.cyberBlue, // Color del switch
+                    activeThumbColor: AppColors.accentMagenta,
                   ),
                   const Divider(),
+
+                  // OPCIÓN 3: ARCHIVOS
                   SwitchListTile(
                     secondary: _buildIcon(
-                      Icons.calendar_today_outlined,
-                      AppColors.accentMagenta, // Magenta
+                      Icons.folder_open,
+                      AppColors.accentGreen,
                     ),
-                    title: const Text('Resumen semanal'),
-                    value: _weeklySummary,
-                    onChanged: (bool value) =>
-                        setState(() => _weeklySummary = value),
-                    activeThumbColor:
-                        AppColors.accentMagenta, // Color del switch
-                  ),
-                  const Divider(),
-                  SwitchListTile(
-                    secondary: _buildIcon(
-                      Icons.flag_outlined,
-                      AppColors.accentGreen, // Verde
+                    title: Text(
+                      _isAdmin ? 'Archivos de Clientes' : 'Archivos subidos',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
-                    title: const Text('Hitos completados'),
-                    value: _milestoneAlerts,
+                    subtitle: Text(
+                      _isAdmin
+                          ? 'Avisos cuando un cliente sube documentos'
+                          : 'Confirmación de subida exitosa',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Colors.white54,
+                      ),
+                    ),
+                    value: _fileNotifications,
                     onChanged: (bool value) =>
-                        setState(() => _milestoneAlerts = value),
-                    activeThumbColor: AppColors.accentGreen, // Color del switch
+                        setState(() => _fileNotifications = value),
+                    activeThumbColor: AppColors.accentGreen,
                   ),
                 ],
               ),
@@ -93,9 +136,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             const SizedBox(height: 24),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.accentMagenta, // Magenta
+                backgroundColor: AppColors.accentMagenta,
                 foregroundColor: Colors.white,
                 minimumSize: const Size(double.infinity, 50),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
               onPressed: () {
                 ScaffoldMessenger.of(context).showSnackBar(

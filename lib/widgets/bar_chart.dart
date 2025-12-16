@@ -5,7 +5,7 @@ import 'package:clarity_software/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 
-// Lógica de color (sin cambios)
+// Lógica de color
 Color _getProjectColorByProgress(double progress) {
   if (progress == 0.0) return AppColors.accentMagenta; // 0%
   if (progress < 0.41) return AppColors.accentOrange; // 1% - 40%
@@ -50,51 +50,50 @@ class _BarChartState extends State<BarChart>
     super.dispose();
   }
 
-  // --- LÓGICA DE TAP (MODIFICADA) ---
   void _handleTap(BuildContext context, TapDownDetails details) {
+    if (widget.projects.isEmpty) return;
+
     final Offset tapLocal = details.localPosition;
     final renderBox = context.findRenderObject() as RenderBox;
     final Size size = renderBox.size;
-
     final double chartHeight = size.height;
 
-    // --- INICIO DEL CAMBIO (Lógica de Tap) ---
-    // Dejamos un 10% de espacio arriba para el texto.
-    final double maxBarHeight = chartHeight * 0.90;
+    // Ajuste de Altura para UI segura
+    final double maxBarHeight = chartHeight * 0.85; // Margen para texto
     final double minBarHeight = chartHeight * 0.05;
-    // --- FIN DEL CAMBIO ---
 
     const double barGap = 12.0;
+    // Espacio total ocupado por gaps (n+1 gaps)
     final double totalGaps = barGap * (widget.projects.length + 1);
+    // Ancho restante dividido por número de proyectos
     final double barWidth = (size.width - totalGaps) / widget.projects.length;
 
     double currentLeft = barGap;
 
     for (final project in widget.projects) {
-      // --- CAMBIO AQUÍ: Usamos maxBarHeight y minBarHeight ---
       final double barHeight = math.max(
-        maxBarHeight * project.overallProgress, // 100% será 90% de la altura
+        maxBarHeight * project.overallProgress,
         minBarHeight,
       );
-      // --- FIN DEL CAMBIO ---
 
       final Rect barRect = Rect.fromLTWH(
         currentLeft,
-        chartHeight - barHeight, // 'top'
+        chartHeight - barHeight,
         barWidth,
         barHeight,
       );
 
-      if (barRect.contains(tapLocal)) {
+      // Expandimos ligeramente el área de toque horizontalmente para mejor UX
+      final Rect touchArea = barRect.inflate(barGap / 2);
+
+      if (touchArea.contains(tapLocal)) {
         _showProjectDetailsPopup(context, project, details.globalPosition);
         return;
       }
       currentLeft += barWidth + barGap;
     }
   }
-  // --- FIN LÓGICA DE TAP ---
 
-  // --- LÓGICA DE POPUP (Sin cambios) ---
   void _showProjectDetailsPopup(
     BuildContext context,
     Project project,
@@ -217,7 +216,6 @@ class _BarChartState extends State<BarChart>
       },
     );
   }
-  // --- FIN LÓGICA DE POPUP ---
 
   @override
   Widget build(BuildContext context) {
@@ -247,7 +245,6 @@ class _BarChartState extends State<BarChart>
   }
 }
 
-// --- CLASE _BarChartPainter (MODIFICADA) ---
 class _BarChartPainter extends CustomPainter {
   final List<Project> projects;
   final double animationValue;
@@ -263,11 +260,10 @@ class _BarChartPainter extends CustomPainter {
     const double barGap = 12.0;
     const double cornerRadius = 6.0;
 
-    // --- INICIO DEL CAMBIO (Lógica de Dibujo) ---
-    // Dejamos un 10% de espacio arriba para el texto.
-    final double maxBarHeight = chartHeight * 0.90;
+    // Altura máxima reservada para la barra (dejando espacio para texto)
+    final double maxBarHeight = chartHeight * 0.85;
+    // Altura mínima visual (para 0% de progreso, que se vea algo)
     final double minBarHeight = chartHeight * 0.05;
-    // --- FIN DEL CAMBIO ---
 
     final double totalGaps = barGap * (projects.length + 1);
     final double barWidth = (size.width - totalGaps) / projects.length;
@@ -275,20 +271,18 @@ class _BarChartPainter extends CustomPainter {
     double currentLeft = barGap;
 
     for (final project in projects) {
-      // --- CAMBIO AQUÍ: Usamos maxBarHeight y minBarHeight ---
-      final double barHeight = math.max(
-        maxBarHeight * project.overallProgress, // 100% será 90% de la altura
+      final double targetHeight = math.max(
+        maxBarHeight * project.overallProgress,
         minBarHeight,
       );
-      // --- FIN DEL CAMBIO ---
 
-      final double animatedHeight = barHeight * animationValue;
+      final double animatedHeight = targetHeight * animationValue;
       paint.color = _getProjectColorByProgress(project.overallProgress);
 
       final RRect barRRect = RRect.fromRectAndCorners(
         Rect.fromLTWH(
           currentLeft,
-          chartHeight - animatedHeight, // 'top'
+          chartHeight - animatedHeight,
           barWidth,
           animatedHeight,
         ),
@@ -298,15 +292,14 @@ class _BarChartPainter extends CustomPainter {
 
       canvas.drawRRect(barRRect, paint);
 
-      // --- INICIO DEL CÓDIGO PARA PINTAR TEXTO (MODIFICADO) ---
-
+      // --- PINTAR TEXTO DE PORCENTAJE ---
       final String percentText =
           '${(project.overallProgress * 100).toStringAsFixed(0)}%';
 
       final textSpan = TextSpan(
         text: percentText,
         style: const TextStyle(
-          color: AppColors.primaryText, // Texto blanco
+          color: Colors.white, // Forzamos blanco para visibilidad
           fontSize: 12,
           fontWeight: FontWeight.bold,
         ),
@@ -318,22 +311,18 @@ class _BarChartPainter extends CustomPainter {
         textDirection: TextDirection.ltr,
       );
 
-      textPainter.layout(minWidth: 0, maxWidth: barWidth);
+      // Limitamos el ancho del texto al ancho de la barra para evitar desbordes
+      textPainter.layout(minWidth: 0, maxWidth: barWidth + 20);
 
-      // 4. CÁLCULO DE POSICIÓN
-      final double barTopY = chartHeight - animatedHeight;
+      // Centrado Horizontal
       final double barCenterX = currentLeft + (barWidth / 2);
-
-      // Centrar el texto horizontalmente
       final double textX = barCenterX - (textPainter.width / 2);
 
-      // Posicionar el texto 4px POR ENCIMA de la barra
-      // Como la barra NUNCA llega a Y=0, esto siempre es seguro.
+      // Posición Vertical: Justo encima de la barra
+      final double barTopY = chartHeight - animatedHeight;
       final double textY = barTopY - textPainter.height - 4.0;
 
       textPainter.paint(canvas, Offset(textX, textY));
-
-      // --- FIN DEL CÓDIGO PARA PINTAR TEXTO ---
 
       currentLeft += barWidth + barGap;
     }

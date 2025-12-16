@@ -1,42 +1,35 @@
 // lib/models/appointment.dart
 
-enum AppointmentStatus { pending, approved, rejected, completed }
-
 class Appointment {
   final String id;
   final String clientId;
-  final String
-  projectId; // Opcional, si la cita es sobre un proyecto específico
-  final String reason; // "Revisión de avance", "Visita técnica", etc.
-  final DateTime requestedDate; // La fecha que el cliente quiere
-  final AppointmentStatus status;
-  final DateTime createdAt;
-  final String? adminNotes; // Respuesta del admin (ej. "Te llamo antes")
+  final String clientName;
+  final String title;
+  final String description;
+  final DateTime date;
+  final String status; // 'pending', 'approved', 'rejected'
 
   Appointment({
     required this.id,
     required this.clientId,
-    required this.projectId,
-    required this.reason,
-    required this.requestedDate,
+    required this.clientName,
+    required this.title,
+    this.description = '',
+    required this.date,
     required this.status,
-    required this.createdAt,
-    this.adminNotes,
   });
 
   factory Appointment.fromJson(Map<String, dynamic> json) {
     return Appointment(
       id: json['id'] ?? '',
       clientId: json['clientId'] ?? '',
-      projectId: json['projectId'] ?? '',
-      reason: json['reason'] ?? '',
-      requestedDate: DateTime.parse(json['requestedDate']),
-      status: AppointmentStatus.values.firstWhere(
-        (e) => e.toString() == json['status'],
-        orElse: () => AppointmentStatus.pending,
-      ),
-      createdAt: DateTime.parse(json['createdAt']),
-      adminNotes: json['adminNotes'],
+      clientName: json['clientName'] ?? 'Cliente',
+      title: json['title'] ?? 'Cita General',
+      description: json['description'] ?? '',
+      date: json['date'] != null
+          ? DateTime.parse(json['date'])
+          : DateTime.now(),
+      status: json['status'] ?? 'pending',
     );
   }
 
@@ -44,12 +37,11 @@ class Appointment {
     return {
       'id': id,
       'clientId': clientId,
-      'projectId': projectId,
-      'reason': reason,
-      'requestedDate': requestedDate.toIso8601String(),
-      'status': status.toString(),
-      'createdAt': createdAt.toIso8601String(),
-      'adminNotes': adminNotes,
+      'clientName': clientName,
+      'title': title,
+      'description': description,
+      'date': date.toIso8601String(),
+      'status': status,
     };
   }
 }

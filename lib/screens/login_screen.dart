@@ -1,4 +1,5 @@
 // lib/screens/login_screen.dart
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:clarity_software/theme/app_colors.dart';
@@ -6,6 +7,7 @@ import 'package:clarity_software/services/auth_service.dart';
 import 'package:clarity_software/models/client_user.dart';
 import 'package:clarity_software/screens/client/overview_screen.dart';
 import 'package:clarity_software/screens/admin/admin_dashboard_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -23,32 +25,72 @@ class _LoginScreenState extends State<LoginScreen> {
 
   bool _isLoading = false;
   bool _obscurePassword = true;
+  StreamSubscription<User?>? _authSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    // Escucha activa: Si Firebase dice que hay usuario, navegamos.
+    _authSubscription =
+        FirebaseAuth.instance.authStateChanges().listen((user) async {
+      if (user != null && mounted) {
+        // Usuario detectado, obtenemos datos y navegamos
+        final clientUser = await _authService.signInWithEmailAndPassword(
+                // Este método ahora es redundante para login, pero lo usamos para obtener el rol
+                // Si ya está logueado, authService manejará la obtención de datos
+                user.email ?? '',
+                'dummy_password' // No importa aquí, ya está autenticado
+                ) ??
+            ClientUser(
+              id: user.uid,
+              email: user.email ?? '',
+              name: user.displayName ?? 'Usuario',
+              role: 'client', // Default seguro
+              photoUrl: user.photoURL ?? '',
+            );
+
+        // Pequeño delay para asegurar que el frame esté listo
+        if (!mounted) return;
+        _navigateBasedOnRole(clientUser);
+      }
+    });
+  }
 
   @override
   void dispose() {
+    _authSubscription?.cancel();
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
 
   Future<void> _handleEmailSignIn() async {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
+    if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
 
     try {
+      // El método signIn de AuthService ya devuelve el usuario con rol
       final ClientUser? user = await _authService.signInWithEmailAndPassword(
         _emailController.text.trim(),
         _passwordController.text.trim(),
       );
+
+      // Si el listener de initState no lo capturó (ej. primera vez), lo manejamos aquí
+      if (!mounted) return;
+
       if (user != null) {
         _navigateBasedOnRole(user);
+      } else {
+        // Si es null, AuthService capturó un error pero no lanzó excepción
+        if (mounted) {
+          _showErrorSnackBar('Credenciales inválidas o error de conexión.');
+        }
       }
     } catch (e) {
       if (mounted) {
-        _showErrorSnackBar('Error: Verifica tus credenciales.');
+        String msg = e.toString().replaceAll('Exception: ', '');
+        _showErrorSnackBar(msg);
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -59,6 +101,9 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
     try {
       final ClientUser? user = await _authService.signInWithGoogle();
+
+      if (!mounted) return;
+
       if (user != null) {
         _navigateBasedOnRole(user);
       }
@@ -146,6 +191,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
   void _navigateBasedOnRole(ClientUser user) {
     if (!mounted) return;
+
+    // Evitamos navegar si ya estamos navegando (check simple)
+    if (!ModalRoute.of(context)!.isCurrent) return;
+
     if (user.isAdmin) {
       Navigator.pushReplacement(
         context,
@@ -237,16 +286,16 @@ class _LoginScreenState extends State<LoginScreen> {
                 Text(
                   'Bienvenido',
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    color: AppColors.primaryText,
-                    fontWeight: FontWeight.bold,
-                  ),
+                        color: AppColors.primaryText,
+                        fontWeight: FontWeight.bold,
+                      ),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   'Inicia sesión para continuar',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.secondaryText,
-                  ),
+                        color: AppColors.secondaryText,
+                      ),
                 ),
                 const SizedBox(height: 40),
                 TextFormField(
@@ -267,19 +316,19 @@ class _LoginScreenState extends State<LoginScreen> {
                   obscureText: _obscurePassword,
                   decoration: _inputDecoration('Contraseña', Icons.lock_outline)
                       .copyWith(
-                        suffixIcon: IconButton(
-                          icon: Icon(
-                            _obscurePassword
-                                ? Icons.visibility_outlined
-                                : Icons.visibility_off_outlined,
-                            color: AppColors.secondaryText,
-                            size: 20,
-                          ),
-                          onPressed: () => setState(
-                            () => _obscurePassword = !_obscurePassword,
-                          ),
-                        ),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscurePassword
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined,
+                        color: AppColors.secondaryText,
+                        size: 20,
                       ),
+                      onPressed: () => setState(
+                        () => _obscurePassword = !_obscurePassword,
+                      ),
+                    ),
+                  ),
                   validator: (value) =>
                       value!.isEmpty ? 'Ingresa tu contraseña' : null,
                 ),

@@ -4,6 +4,7 @@ import 'package:clarity_software/models/client_user.dart';
 import 'package:clarity_software/screens/admin/admin_appointments_screen.dart';
 import 'package:clarity_software/screens/admin/client_editor_dialog.dart';
 import 'package:clarity_software/screens/admin/admin_project_list_screen.dart';
+import 'package:clarity_software/screens/shared/chat_screen.dart';
 import 'package:clarity_software/services/user_service.dart';
 import 'package:clarity_software/theme/app_colors.dart';
 import 'package:clarity_software/widgets/global_menu.dart';
@@ -29,6 +30,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     );
   }
 
+  void _navigateToClientChat(ClientUser client) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) =>
+            ChatScreen(targetChatId: client.id, chatTitle: client.name),
+      ),
+    );
+  }
+
   void _navigateToAppointments() {
     Navigator.push(
       context,
@@ -50,7 +61,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     const double appBarHeight = 65.0;
-    // Padding superior corregido
     final double topContentPadding =
         MediaQuery.of(context).padding.top + appBarHeight + 20;
 
@@ -130,46 +140,43 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           }
 
           return ListView.builder(
-            padding: EdgeInsets.fromLTRB(
-              16,
-              topContentPadding,
-              16,
-              80,
-            ), // Padding inferior para el FAB
+            padding: EdgeInsets.fromLTRB(16, topContentPadding, 16, 80),
             itemCount: clients.length,
             itemBuilder: (context, index) {
               final client = clients[index];
               return Padding(
                 padding: const EdgeInsets.only(bottom: 16.0),
-                child: GestureDetector(
-                  onTap: () => _navigateToClientProjects(client),
-                  child: NeonCard(
-                    glowColor: AppColors.cyberBlue.withValues(alpha: 0.4),
-                    padding: const EdgeInsets.all(16),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 50,
-                          height: 50,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: AppColors.cyberBlue.withValues(alpha: 0.1),
-                            border: Border.all(color: AppColors.cyberBlue),
-                          ),
-                          child: client.photoUrl.isNotEmpty
-                              ? ClipOval(
-                                  child: Image.network(
-                                    client.photoUrl,
-                                    fit: BoxFit.cover,
-                                  ),
-                                )
-                              : const Icon(
-                                  Icons.person,
-                                  color: AppColors.cyberBlue,
-                                ),
+                child: NeonCard(
+                  glowColor: AppColors.cyberBlue.withValues(alpha: 0.4),
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      // Avatar
+                      Container(
+                        width: 50,
+                        height: 50,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: AppColors.cyberBlue.withValues(alpha: 0.1),
+                          border: Border.all(color: AppColors.cyberBlue),
                         ),
-                        const SizedBox(width: 16),
-                        Expanded(
+                        child: client.photoUrl.isNotEmpty
+                            ? ClipOval(
+                                child: Image.network(
+                                  client.photoUrl,
+                                  fit: BoxFit.cover,
+                                ),
+                              )
+                            : const Icon(
+                                Icons.person,
+                                color: AppColors.cyberBlue,
+                              ),
+                      ),
+                      const SizedBox(width: 16),
+                      // Info
+                      Expanded(
+                        child: InkWell(
+                          onTap: () => _navigateToClientProjects(client),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -192,19 +199,24 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                             ],
                           ),
                         ),
-                        IconButton(
-                          icon: const Icon(
-                            Icons.edit_outlined,
-                            color: AppColors.grey,
-                          ),
-                          onPressed: () => _showClientDialog(client),
+                      ),
+                      // Acciones: Chat y Editar
+                      IconButton(
+                        icon: const Icon(
+                          Icons.chat_bubble_outline,
+                          color: AppColors.accentOrange,
                         ),
-                        const Icon(
-                          Icons.chevron_right,
-                          color: AppColors.cyberBlue,
+                        tooltip: 'Chat con cliente',
+                        onPressed: () => _navigateToClientChat(client),
+                      ),
+                      IconButton(
+                        icon: const Icon(
+                          Icons.edit_outlined,
+                          color: AppColors.grey,
                         ),
-                      ],
-                    ),
+                        onPressed: () => _showClientDialog(client),
+                      ),
+                    ],
                   ),
                 ),
               );
