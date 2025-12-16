@@ -54,7 +54,6 @@ class _ChatWidgetState extends State<ChatWidget> {
       _controller.clear();
       setState(() => _activeCitation = null);
     } catch (e) {
-      // --- CORRECCIÓN DE LINT ---
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -231,10 +230,6 @@ class _ChatWidgetState extends State<ChatWidget> {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        // Aquí iría la lista de mensajes si este widget la manejara, pero
-        // la maneja el StreamBuilder externo en KanbanBoard.
-
-        // --- ÁREA DE INPUT ---
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
@@ -286,7 +281,6 @@ class _ChatWidgetState extends State<ChatWidget> {
                     ],
                   ),
                 ),
-
               Row(
                 children: [
                   IconButton(
@@ -324,13 +318,10 @@ class _ChatWidgetState extends State<ChatWidget> {
   }
 }
 
-// --- WIDGET AUXILIAR: Burbuja de Mensaje ---
 class ChatBubble extends StatelessWidget {
   final FeedbackMessage message;
   final bool isMe;
-
   const ChatBubble({super.key, required this.message, required this.isMe});
-
   void _launchURL(String url) async {
     if (!await launchUrl(Uri.parse(url))) {
       debugPrint('Could not launch $url');
@@ -349,7 +340,6 @@ class ChatBubble extends StatelessWidget {
       bottomLeft: isMe ? const Radius.circular(12) : Radius.zero,
       bottomRight: isMe ? Radius.zero : const Radius.circular(12),
     );
-
     return Column(
       crossAxisAlignment: align,
       children: [
@@ -379,12 +369,10 @@ class ChatBubble extends StatelessWidget {
                     ),
                   ),
                 ),
-
               Text(
                 message.message,
                 style: const TextStyle(color: Colors.white),
               ),
-
               if (message.attachments.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(top: 8.0),
@@ -405,7 +393,6 @@ class ChatBubble extends StatelessWidget {
                     }).toList(),
                   ),
                 ),
-
               const SizedBox(height: 4),
               Text(
                 DateFormat('HH:mm').format(message.timestamp),

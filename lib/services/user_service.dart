@@ -28,6 +28,16 @@ class UserService {
     return null;
   }
 
+  // --- STREAM DE UN SOLO USUARIO (Para el Banner en tiempo real) ---
+  Stream<ClientUser?> getUserStream(String userId) {
+    return _db.collection(_collection).doc(userId).snapshots().map((doc) {
+      if (doc.exists && doc.data() != null) {
+        return ClientUser.fromJson(doc.data()!);
+      }
+      return null;
+    });
+  }
+
   // --- GUARDAR O ACTUALIZAR USUARIO COMPLETO ---
   Future<void> saveUser(ClientUser user) async {
     String userId = user.id;
@@ -48,11 +58,16 @@ class UserService {
     await _db.collection(_collection).doc(userId).set(userToSave.toJson());
   }
 
-  // --- NUEVO: ACTUALIZAR SOLO LA FIRMA ---
+  // --- ACTUALIZAR SOLO LA FIRMA ---
   Future<void> updateUserSignature(String userId, String signatureUrl) async {
     await _db.collection(_collection).doc(userId).update({
       'signatureUrl': signatureUrl,
       'hasSignatureConfigured': true,
     });
+  }
+
+  // --- NUEVO: ACTUALIZAR NOMBRE ---
+  Future<void> updateUserName(String userId, String newName) async {
+    await _db.collection(_collection).doc(userId).update({'name': newName});
   }
 }

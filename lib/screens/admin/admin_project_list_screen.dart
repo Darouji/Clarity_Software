@@ -94,6 +94,9 @@ class _AdminProjectListScreenState extends State<AdminProjectListScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     const double appBarHeight = 65.0;
+    // --- CORRECCIÓN: Padding para evitar solapamiento con el Banner ---
+    final double topPadding =
+        MediaQuery.of(context).padding.top + appBarHeight + 20;
 
     return Scaffold(
       extendBodyBehindAppBar: true,
@@ -174,15 +177,15 @@ class _AdminProjectListScreenState extends State<AdminProjectListScreen> {
           }
 
           return ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            // Aplicamos el padding calculado aquí
+            padding: EdgeInsets.fromLTRB(16.0, topPadding, 16.0, 80.0),
             itemCount: projects.length,
             itemBuilder: (context, index) {
               final project = projects[index];
-              final double topPadding = index == 0 ? appBarHeight + 20 : 0;
               final glowColor = _getProjectColor(project.overallProgress);
 
               return Padding(
-                padding: EdgeInsets.fromLTRB(0, topPadding, 0, 24.0),
+                padding: const EdgeInsets.only(bottom: 24.0),
                 child: GestureDetector(
                   onTap: () => _viewProjectDetails(project),
                   child: NeonCard(
@@ -288,9 +291,9 @@ class _AdminProjectListScreenState extends State<AdminProjectListScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: AppColors.accentMagenta,
+        child: const Icon(Icons.add, color: Colors.white),
         tooltip: 'Crear Nuevo Proyecto',
         onPressed: () => _editProject(null),
-        child: const Icon(Icons.add, color: Colors.white),
       ),
     );
   }

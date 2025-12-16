@@ -18,7 +18,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final AuthService _authService = AuthService();
   final _formKey = GlobalKey<FormState>();
 
-  // Controladores de texto
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
@@ -32,9 +31,10 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  // --- Lógica de Login con Correo ---
   Future<void> _handleEmailSignIn() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
 
     setState(() => _isLoading = true);
 
@@ -47,30 +47,30 @@ class _LoginScreenState extends State<LoginScreen> {
         _navigateBasedOnRole(user);
       }
     } catch (e) {
-      _showErrorSnackBar('Error: Verifica tus credenciales.');
+      if (mounted) {
+        _showErrorSnackBar('Error: Verifica tus credenciales.');
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  // --- Lógica de Login con Google ---
   Future<void> _handleGoogleSignIn() async {
     setState(() => _isLoading = true);
     try {
       final ClientUser? user = await _authService.signInWithGoogle();
       if (user != null) {
         _navigateBasedOnRole(user);
-      } else {
-        // Cancelado por el usuario
       }
     } catch (e) {
-      _showErrorSnackBar('Error de conexión con Google.');
+      if (mounted) {
+        _showErrorSnackBar('Error de conexión con Google.');
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  // --- Lógica de Recuperar Contraseña ---
   void _showForgotPasswordDialog() {
     final TextEditingController resetEmailController = TextEditingController();
 
@@ -125,7 +125,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   Navigator.pop(context);
                   _showSuccessSnackBar('Correo de recuperación enviado.');
                 } catch (e) {
-                  // --- CORRECCIÓN DE LINT ---
                   if (mounted) {
                     Navigator.pop(context);
                     _showErrorSnackBar(
@@ -235,7 +234,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 const SizedBox(height: 30),
-
                 Text(
                   'Bienvenido',
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
@@ -251,7 +249,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 const SizedBox(height: 40),
-
                 TextFormField(
                   controller: _emailController,
                   style: const TextStyle(color: Colors.white),
@@ -264,7 +261,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       value!.isEmpty ? 'Ingresa tu correo' : null,
                 ),
                 const SizedBox(height: 20),
-
                 TextFormField(
                   controller: _passwordController,
                   style: const TextStyle(color: Colors.white),
@@ -287,7 +283,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   validator: (value) =>
                       value!.isEmpty ? 'Ingresa tu contraseña' : null,
                 ),
-
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(
@@ -301,9 +296,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                 ),
-
                 const SizedBox(height: 30),
-
                 if (_isLoading)
                   const CircularProgressIndicator(color: AppColors.cyberBlue)
                 else
@@ -330,9 +323,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                   ),
-
                 const SizedBox(height: 25),
-
                 Row(
                   children: [
                     const Expanded(child: Divider(color: Colors.white24)),
@@ -348,9 +339,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     const Expanded(child: Divider(color: Colors.white24)),
                   ],
                 ),
-
                 const SizedBox(height: 25),
-
                 SizedBox(
                   width: double.infinity,
                   height: 55,

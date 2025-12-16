@@ -1,70 +1,95 @@
 // lib/models/dashboard_config.dart
 
 class DashboardConfig {
-  final bool showCharts;
-  final bool showStats;
-  final bool showProjects;
+  // Estados de visibilidad
   final bool showCalendar;
-  final bool showShortcuts; // Nuevo módulo de accesos rápidos
+  final bool showMilestones;
+  final bool showShortcuts; // Botones de Agendar/Archivos
+  final bool showTileProjects;
+  final bool showTileNotifications;
+  final bool showTileChat;
+  final bool showTileFiles;
 
-  // Lista ordenada de IDs de los módulos
-  // IDs: 'shortcuts', 'charts', 'stats', 'calendar', 'projects'
+  // Lista ordenada de IDs
   final List<String> layout;
 
   DashboardConfig({
-    this.showCharts = true,
-    this.showStats = true,
-    this.showProjects = true,
     this.showCalendar = true,
+    this.showMilestones = true,
     this.showShortcuts = true,
+    this.showTileProjects = true,
+    this.showTileNotifications = true,
+    this.showTileChat = true,
+    this.showTileFiles = true,
     List<String>? layout,
   }) : layout =
-           layout ?? ['shortcuts', 'calendar', 'charts', 'stats', 'projects'];
+           layout ??
+           [
+             'shortcuts',
+             'calendar',
+             'milestones',
+             'tile_projects',
+             'tile_notifs',
+             'tile_chat',
+             'tile_files',
+           ];
 
   factory DashboardConfig.fromJson(Map<String, dynamic> json) {
-    // Recuperamos la lista o usamos el orden por defecto si no existe
-    List<String> loadedLayout = [];
-    if (json['layout'] != null) {
-      loadedLayout = List<String>.from(json['layout']);
-    } else {
-      loadedLayout = ['shortcuts', 'calendar', 'charts', 'stats', 'projects'];
-    }
-
     return DashboardConfig(
-      showCharts: json['showCharts'] ?? true,
-      showStats: json['showStats'] ?? true,
-      showProjects: json['showProjects'] ?? true,
       showCalendar: json['showCalendar'] ?? true,
+      showMilestones: json['showMilestones'] ?? true,
       showShortcuts: json['showShortcuts'] ?? true,
-      layout: loadedLayout,
+      showTileProjects: json['showTileProjects'] ?? true,
+      showTileNotifications: json['showTileNotifications'] ?? true,
+      showTileChat: json['showTileChat'] ?? true,
+      showTileFiles: json['showTileFiles'] ?? true,
+      layout: json['layout'] != null
+          ? List<String>.from(json['layout'])
+          : [
+              'shortcuts',
+              'calendar',
+              'milestones',
+              'tile_projects',
+              'tile_notifs',
+              'tile_chat',
+              'tile_files',
+            ],
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
-      'showCharts': showCharts,
-      'showStats': showStats,
-      'showProjects': showProjects,
       'showCalendar': showCalendar,
+      'showMilestones': showMilestones,
       'showShortcuts': showShortcuts,
+      'showTileProjects': showTileProjects,
+      'showTileNotifications': showTileNotifications,
+      'showTileChat': showTileChat,
+      'showTileFiles': showTileFiles,
       'layout': layout,
     };
   }
 
+  // Método copyWith para actualizaciones inmutables
   DashboardConfig copyWith({
-    bool? showCharts,
-    bool? showStats,
-    bool? showProjects,
     bool? showCalendar,
+    bool? showMilestones,
     bool? showShortcuts,
+    bool? showTileProjects,
+    bool? showTileNotifications,
+    bool? showTileChat,
+    bool? showTileFiles,
     List<String>? layout,
   }) {
     return DashboardConfig(
-      showCharts: showCharts ?? this.showCharts,
-      showStats: showStats ?? this.showStats,
-      showProjects: showProjects ?? this.showProjects,
       showCalendar: showCalendar ?? this.showCalendar,
+      showMilestones: showMilestones ?? this.showMilestones,
       showShortcuts: showShortcuts ?? this.showShortcuts,
+      showTileProjects: showTileProjects ?? this.showTileProjects,
+      showTileNotifications:
+          showTileNotifications ?? this.showTileNotifications,
+      showTileChat: showTileChat ?? this.showTileChat,
+      showTileFiles: showTileFiles ?? this.showTileFiles,
       layout: layout ?? this.layout,
     );
   }

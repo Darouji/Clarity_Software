@@ -2,31 +2,20 @@
 import 'dart:ui';
 import 'package:clarity_software/models/dashboard_config.dart';
 import 'package:clarity_software/models/project.dart';
-import 'package:clarity_software/screens/client/booking_screen.dart'; // Importar Booking
-import 'package:clarity_software/screens/client/dashboard_customizer_dialog.dart';
-import 'package:clarity_software/screens/client/project_details_screen.dart';
-import 'package:clarity_software/services/preference_service.dart';
+import 'package:clarity_software/screens/client/booking_screen.dart';
+import 'package:clarity_software/screens/client/notifications_screen.dart';
+import 'package:clarity_software/screens/client/projects_dashboard_screen.dart';
+import 'package:clarity_software/services/user_service.dart';
+import 'package:clarity_software/widgets/dashboard_tile.dart';
 import 'package:clarity_software/widgets/global_menu.dart';
 import 'package:clarity_software/services/project_service.dart';
-import 'package:clarity_software/services/view_status_service.dart';
 import 'package:clarity_software/theme/app_colors.dart';
-import 'package:clarity_software/widgets/neon_card.dart';
-import 'package:clarity_software/widgets/pie_chart.dart';
+import 'package:clarity_software/widgets/latest_milestones_widget.dart';
 import 'package:flutter/material.dart';
-import 'package:clarity_software/widgets/info_block.dart';
-import 'package:clarity_software/widgets/bar_chart.dart';
 import 'package:clarity_software/services/auth_service.dart';
 import 'package:clarity_software/models/client_user.dart';
-import 'package:clarity_software/services/feedback_notification_service.dart';
-import 'package:clarity_software/models/feedback_message.dart';
 import 'package:clarity_software/widgets/calendar_widget.dart';
-
-Color getProjectColorByProgress(double progress) {
-  if (progress == 0.0) return AppColors.accentMagenta;
-  if (progress < 0.41) return AppColors.accentOrange;
-  if (progress < 1.0) return AppColors.cyberBlue;
-  return AppColors.accentGreen;
-}
+import 'package:clarity_software/services/preference_service.dart';
 
 class OverviewScreen extends StatefulWidget {
   const OverviewScreen({super.key});
@@ -35,365 +24,430 @@ class OverviewScreen extends StatefulWidget {
   State<OverviewScreen> createState() => _OverviewScreenState();
 }
 
-class _OverviewScreenState extends State<OverviewScreen>
-    with SingleTickerProviderStateMixin {
+class _OverviewScreenState extends State<OverviewScreen> {
   final ProjectService _projectService = ProjectService();
-  final ViewStatusService _viewStatusService = ViewStatusService();
   final AuthService _authService = AuthService();
-  final FeedbackNotificationService _feedbackService =
-      FeedbackNotificationService();
+  final UserService _userService = UserService();
   final PreferenceService _preferenceService = PreferenceService();
 
-  late AnimationController _blinkAnimationController;
-  late Animation<double> _blinkAnimation;
-
   ClientUser? _currentUser;
-  final PageController _pageController = PageController();
-  int _currentChartPage = 0;
+  bool _isEditMode = false;
+
+  // IDs de los bloques que deben ser CUADRADOS (Tiles)
+  final Set<String> _smallTiles = {
+    'shortcuts',
+    'tile_projects',
+    'tile_notifs',
+    'tile_chat',
+    'tile_files',
+  };
 
   @override
   void initState() {
     super.initState();
     _currentUser = _authService.currentUser;
+  }
 
-    _blinkAnimationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 700),
+  void _editName(ClientUser user) {
+    final TextEditingController nameController = TextEditingController(
+      text: user.name,
     );
-    _blinkAnimation = Tween<double>(
-      begin: 0.3,
-      end: 1.0,
-    ).animate(_blinkAnimationController);
-    _blinkAnimationController.repeat(reverse: true);
-  }
-
-  @override
-  void dispose() {
-    _pageController.dispose();
-    _blinkAnimationController.dispose();
-    super.dispose();
-  }
-
-  void _openCustomizer(DashboardConfig currentConfig) async {
-    final result = await showDialog<DashboardConfig>(
+    showDialog(
       context: context,
-      builder: (context) =>
-          DashboardCustomizerDialog(initialConfig: currentConfig),
-    );
-
-    if (result != null) {
-      await _preferenceService.saveDashboardConfig(result);
-    }
-  }
-
-  String _formatLastUpdate(DateTime lastUpdate) {
-    final Duration difference = DateTime.now().difference(lastUpdate);
-    if (difference.inDays > 0) {
-      return 'Hace ${difference.inDays} día${difference.inDays > 1 ? 's' : ''}';
-    } else if (difference.inHours > 0) {
-      return 'Hace ${difference.inHours} h';
-    } else {
-      return 'Hace un momento';
-    }
-  }
-
-  Widget _buildDot(int index) {
-    bool isActive = index == _currentChartPage;
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 150),
-      margin: const EdgeInsets.symmetric(horizontal: 4.0),
-      height: 8.0,
-      width: isActive ? 24.0 : 8.0,
-      decoration: BoxDecoration(
-        color: isActive
-            ? AppColors.cyberBlue
-            : AppColors.grey.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(5.0),
-      ),
-    );
-  }
-
-  // --- WIDGETS MODULARES ---
-
-  Widget _buildShortcutsModule() {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 20.0),
-      child: Row(
-        children: [
-          Expanded(
-            child: ElevatedButton.icon(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const BookingScreen(),
-                  ),
-                );
-              },
-              icon: const Icon(Icons.calendar_month, color: Colors.white),
-              label: const Text('Agendar Cita'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.accentMagenta,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.cardBackground,
+        title: const Text(
+          'Editar Nombre',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: TextField(
+          controller: nameController,
+          style: const TextStyle(color: Colors.white),
+          decoration: const InputDecoration(
+            labelText: 'Nombre visible',
+            labelStyle: TextStyle(color: Colors.white54),
+            enabledBorder: UnderlineInputBorder(
+              borderSide: BorderSide(color: Colors.white30),
+            ),
+            focusedBorder: UnderlineInputBorder(
+              borderSide: BorderSide(color: AppColors.cyberBlue),
             ),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: OutlinedButton.icon(
-              onPressed: () {
-                // Futura expansión: Ver todos los archivos globales
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Accede a los archivos desde cada proyecto'),
-                  ),
-                );
-              },
-              icon: const Icon(Icons.folder_shared, color: AppColors.cyberBlue),
-              label: const Text('Mis Archivos'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.cyberBlue,
-                side: const BorderSide(color: AppColors.cyberBlue),
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text(
+              'Cancelar',
+              style: TextStyle(color: Colors.white54),
             ),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (nameController.text.isNotEmpty) {
+                await _userService.updateUserName(user.id, nameController.text);
+                if (mounted) Navigator.pop(context);
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.accentMagenta,
+            ),
+            child: const Text('Guardar', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildChartsModule(List<Project> sortedProjects) {
-    return Column(
-      children: [
-        SizedBox(
-          height: 220,
-          child: PageView(
-            controller: _pageController,
-            onPageChanged: (int page) =>
-                setState(() => _currentChartPage = page),
-            children: [
-              PieChart(projects: sortedProjects, size: 220),
-              BarChart(projects: sortedProjects, size: 220),
-            ],
+  DashboardConfig _toggleVisibility(
+    DashboardConfig config,
+    String id,
+    bool val,
+  ) {
+    switch (id) {
+      case 'calendar':
+        return config.copyWith(showCalendar: val);
+      case 'milestones':
+        return config.copyWith(showMilestones: val);
+      case 'shortcuts':
+        return config.copyWith(showShortcuts: val);
+      case 'tile_projects':
+        return config.copyWith(showTileProjects: val);
+      case 'tile_notifs':
+        return config.copyWith(showTileNotifications: val);
+      case 'tile_chat':
+        return config.copyWith(showTileChat: val);
+      case 'tile_files':
+        return config.copyWith(showTileFiles: val);
+      default:
+        return config;
+    }
+  }
+
+  Widget _getWidgetById(
+    String id,
+    DashboardConfig config,
+    List<Project> projects,
+    int activeCount,
+  ) {
+    if (!_isIdVisible(id, config) && !_isEditMode)
+      return const SizedBox.shrink();
+
+    switch (id) {
+      case 'calendar':
+        return CalendarWidget(projects: projects);
+      case 'milestones':
+        return LatestMilestonesWidget(projects: projects);
+      case 'shortcuts':
+        return _buildBookingShortcutTile(config);
+      case 'tile_projects':
+        return DashboardTile(
+          title: 'Proyectos Activos',
+          icon: Icons.bar_chart,
+          color: AppColors.cyberBlue,
+          badgeText: activeCount > 0 ? '$activeCount' : null,
+          isEditMode: _isEditMode,
+          isVisible: config.showTileProjects,
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const ProjectsDashboardScreen(),
+            ),
           ),
-        ),
-        const SizedBox(height: 10),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [_buildDot(0), _buildDot(1)],
-        ),
-        const SizedBox(height: 20),
-      ],
+          onToggleVisibility: () => _toggleItem(id, config),
+        );
+      case 'tile_notifs':
+        return DashboardTile(
+          title: 'Notificaciones',
+          icon: Icons.notifications_none,
+          color: AppColors.accentMagenta,
+          isEditMode: _isEditMode,
+          isVisible: config.showTileNotifications,
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const NotificationsScreen(),
+            ),
+          ),
+          onToggleVisibility: () => _toggleItem(id, config),
+        );
+      case 'tile_chat':
+        return DashboardTile(
+          title: 'Mensajería',
+          icon: Icons.chat_bubble_outline,
+          color: AppColors.accentOrange,
+          isEditMode: _isEditMode,
+          isVisible: config.showTileChat,
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const ProjectsDashboardScreen(),
+              ),
+            );
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Selecciona un proyecto para ver el chat'),
+              ),
+            );
+          },
+          onToggleVisibility: () => _toggleItem(id, config),
+        );
+      case 'tile_files':
+        return DashboardTile(
+          title: 'Mis Archivos',
+          icon: Icons.folder_open,
+          color: AppColors.accentGreen,
+          isEditMode: _isEditMode,
+          isVisible: config.showTileFiles,
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const ProjectsDashboardScreen(),
+              ),
+            );
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Selecciona un proyecto para ver sus archivos'),
+              ),
+            );
+          },
+          onToggleVisibility: () => _toggleItem(id, config),
+        );
+      default:
+        return const SizedBox.shrink();
+    }
+  }
+
+  Widget _buildBookingShortcutTile(DashboardConfig config) {
+    return DashboardTile(
+      title: 'Agendar Cita',
+      icon: Icons.calendar_month,
+      color: AppColors.accentMagenta,
+      isEditMode: _isEditMode,
+      isVisible: config.showShortcuts,
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const BookingScreen()),
+      ),
+      onToggleVisibility: () => _toggleItem('shortcuts', config),
     );
   }
 
-  Widget _buildProjectsModule(
-    List<Project> sortedProjects,
-    bool showStats,
+  bool _isIdVisible(String id, DashboardConfig config) {
+    switch (id) {
+      case 'calendar':
+        return config.showCalendar;
+      case 'milestones':
+        return config.showMilestones;
+      case 'shortcuts':
+        return config.showShortcuts;
+      case 'tile_projects':
+        return config.showTileProjects;
+      case 'tile_notifs':
+        return config.showTileNotifications;
+      case 'tile_chat':
+        return config.showTileChat;
+      case 'tile_files':
+        return config.showTileFiles;
+      default:
+        return true;
+    }
+  }
+
+  void _toggleItem(String id, DashboardConfig config) {
+    final newVal = !_isIdVisible(id, config);
+    final newConfig = _toggleVisibility(config, id, newVal);
+    _preferenceService.saveDashboardConfig(newConfig);
+  }
+
+  // --- LÓGICA DE CONSTRUCCIÓN DEL LAYOUT ---
+  List<Widget> _buildViewLayout(
+    List<String> layout,
+    DashboardConfig config,
+    List<Project> projects,
     int activeCount,
   ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(
-          'Proyectos Activos ($activeCount)',
-          style: Theme.of(
-            context,
-          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-          textAlign: TextAlign.left,
-        ),
-        const SizedBox(height: 15),
-        ...sortedProjects.map((project) {
-          final projectColor = getProjectColorByProgress(
-            project.overallProgress,
-          );
+    List<Widget> widgets = [];
+    int i = 0;
+    while (i < layout.length) {
+      String currentId = layout[i];
 
-          return StreamBuilder<List<FeedbackMessage>>(
-            stream: _feedbackService.getUnreadFeedbackStream(project.id),
-            builder: (context, feedbackSnapshot) {
-              final unreadMessages = feedbackSnapshot.data ?? [];
-              final int unreadCount = unreadMessages.length;
-              final bool hasUnreadFeedback = unreadCount > 0;
-              final bool hasUnreadView = !_viewStatusService.hasBeenViewed(
-                project.id,
-              );
+      // Si está oculto, saltamos
+      if (!_isIdVisible(currentId, config)) {
+        i++;
+        continue;
+      }
 
-              String subtitleText;
-              Color subtitleColor = AppColors.secondaryText;
-              String? highlightMilestoneTitle;
+      bool isSmall = _smallTiles.contains(currentId);
 
-              if (hasUnreadFeedback) {
-                subtitleText =
-                    '$unreadCount novedad${unreadCount > 1 ? 'es' : ''} requiere${unreadCount > 1 ? 'n' : ''} atención';
-                subtitleColor = projectColor;
-                highlightMilestoneTitle = unreadMessages.first.milestoneTitle;
-              } else if (project.status == 'Finalizado') {
-                subtitleText = hasUnreadView
-                    ? 'Hay novedades sin revisar'
-                    : 'Finalizado con éxito';
-                if (!hasUnreadView) {
-                  subtitleColor = AppColors.statusFinishedText;
-                }
-              } else {
-                subtitleText = hasUnreadView
-                    ? 'Nuevo proyecto'
-                    : _formatLastUpdate(project.lastUpdate);
-              }
+      if (isSmall) {
+        // Buscar el siguiente visible
+        String? nextId;
+        int nextIndex = i + 1;
+        while (nextIndex < layout.length) {
+          if (_isIdVisible(layout[nextIndex], config)) {
+            nextId = layout[nextIndex];
+            break;
+          }
+          nextIndex++;
+        }
 
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 24.0),
-                child: GestureDetector(
-                  onTap: () async {
-                    await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => ProjectDetailsScreen(
-                          project: project,
-                          highlightMilestoneTitle: highlightMilestoneTitle,
-                        ),
+        if (nextId != null && _smallTiles.contains(nextId)) {
+          // --- PAR: FILA DE 2 TILES CUADRADOS ---
+          widgets.add(
+            Padding(
+              padding: const EdgeInsets.only(bottom: 16.0),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Forzamos AspectRatio 1:1 para que sean cuadrados
+                  Expanded(
+                    child: AspectRatio(
+                      aspectRatio: 1,
+                      child: _getWidgetById(
+                        currentId,
+                        config,
+                        projects,
+                        activeCount,
                       ),
-                    );
-                    _viewStatusService.markAsViewed(project.id);
-                  },
-                  child: NeonCard(
-                    glowColor: projectColor,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          project.name,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            if (hasUnreadFeedback)
-                              FadeTransition(
-                                opacity: _blinkAnimation,
-                                child: Icon(
-                                  Icons.notification_important,
-                                  color: subtitleColor,
-                                  size: 14,
-                                ),
-                              ),
-                            if (hasUnreadFeedback) const SizedBox(width: 4),
-                            Expanded(
-                              child: hasUnreadFeedback
-                                  ? FadeTransition(
-                                      opacity: _blinkAnimation,
-                                      child: Text(
-                                        subtitleText,
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .bodySmall
-                                            ?.copyWith(
-                                              color: subtitleColor,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                      ),
-                                    )
-                                  : Text(
-                                      subtitleText,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodySmall
-                                          ?.copyWith(color: subtitleColor),
-                                    ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(10.0),
-                          child: LinearProgressIndicator(
-                            value: project.overallProgress,
-                            minHeight: 8,
-                            backgroundColor: AppColors.black.withValues(
-                              alpha: 0.5,
-                            ),
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              projectColor,
-                            ),
-                          ),
-                        ),
-                        // --- STATS DENTRO DE LA TARJETA (CONDICIONAL) ---
-                        if (showStats) ...[
-                          const SizedBox(height: 15),
-                          GridView(
-                            padding: EdgeInsets.zero,
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            gridDelegate:
-                                const SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: 2,
-                                  mainAxisSpacing: 8.0,
-                                  crossAxisSpacing: 8.0,
-                                  childAspectRatio: 2.5,
-                                ),
-                            children: [
-                              InfoBlock(
-                                icon: Icons.flag_outlined,
-                                label: 'ESTADO',
-                                value: project.status,
-                                glowColor: AppColors.neonYellow,
-                              ),
-                              InfoBlock(
-                                icon: Icons.attach_money_outlined,
-                                label: 'PRESUPUESTO',
-                                value: '\$${project.budget}',
-                                glowColor: AppColors.neonMoneyGreen,
-                              ),
-                              InfoBlock(
-                                icon: Icons.people_outline,
-                                label: 'EQUIPO',
-                                value: '${project.team.length}',
-                                glowColor: AppColors.neonPink,
-                              ),
-                              InfoBlock(
-                                icon: Icons.code_outlined,
-                                label: 'TECH',
-                                value: '${project.technologies.length}',
-                                glowColor: AppColors.cyberBlue,
-                              ),
-                            ],
-                          ),
-                        ],
-                      ],
                     ),
                   ),
-                ),
-              );
-            },
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: AspectRatio(
+                      aspectRatio: 1,
+                      child: _getWidgetById(
+                        nextId,
+                        config,
+                        projects,
+                        activeCount,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           );
-        }),
-      ],
+          i = nextIndex + 1; // Saltar al siguiente procesado
+        } else {
+          // --- SOLO UNO: CUADRADO PERO SOLO ---
+          widgets.add(
+            Padding(
+              padding: const EdgeInsets.only(bottom: 16.0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: AspectRatio(
+                      aspectRatio: 1,
+                      child: _getWidgetById(
+                        currentId,
+                        config,
+                        projects,
+                        activeCount,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  const Expanded(child: SizedBox()), // Espacio vacío
+                ],
+              ),
+            ),
+          );
+          i++;
+        }
+      } else {
+        // --- BLOQUE GRANDE ---
+        widgets.add(
+          Padding(
+            padding: const EdgeInsets.only(bottom: 16.0),
+            child: _getWidgetById(currentId, config, projects, activeCount),
+          ),
+        );
+        i++;
+      }
+    }
+    return widgets;
+  }
+
+  Widget _buildEditableWrapper({
+    required Widget child,
+    required String id,
+    required bool isVisible,
+    required DashboardConfig config,
+    required ValueKey<String> key,
+  }) {
+    // Si no estamos en edición y es invisible, return vacío para mantener el índice
+    if (!_isEditMode && !isVisible)
+      return SizedBox(key: ValueKey(id), height: 0);
+
+    return Padding(
+      key: ValueKey(id),
+      padding: const EdgeInsets.only(bottom: 16.0),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Opacity(
+            opacity: (_isEditMode && !isVisible) ? 0.4 : 1.0,
+            child: child,
+          ),
+          if (_isEditMode)
+            Positioned(
+              top: -8,
+              left: -8,
+              child: GestureDetector(
+                onTap: () => _toggleItem(id, config),
+                child: Container(
+                  width: 30,
+                  height: 30,
+                  decoration: BoxDecoration(
+                    color: isVisible
+                        ? AppColors.accentRed
+                        : AppColors.accentGreen,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 2),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.5),
+                        blurRadius: 4,
+                      ),
+                    ],
+                  ),
+                  child: Icon(
+                    isVisible ? Icons.remove : Icons.add,
+                    size: 20,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    const double appBarHeight = 65.0;
+    const double appBarHeight = 70.0;
+    final double topPadding =
+        MediaQuery.of(context).padding.top + appBarHeight + 20;
 
-    if (_currentUser == null) {
+    if (_currentUser == null)
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    }
 
     return StreamBuilder<DashboardConfig>(
       stream: _preferenceService.getDashboardConfigStream(),
       builder: (context, configSnapshot) {
         final config = configSnapshot.data ?? DashboardConfig();
+        final layout = List<String>.from(config.layout);
+
+        if (!layout.contains('shortcuts')) layout.add('shortcuts');
+        if (!layout.contains('tile_projects')) layout.add('tile_projects');
+        if (!layout.contains('tile_notifs')) layout.add('tile_notifs');
+        if (!layout.contains('tile_chat')) layout.add('tile_chat');
+        if (!layout.contains('tile_files')) layout.add('tile_files');
 
         return Scaffold(
           extendBodyBehindAppBar: true,
@@ -404,33 +458,85 @@ class _OverviewScreenState extends State<OverviewScreen>
                 filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
                 child: Container(
                   color: theme.appBarTheme.backgroundColor,
-                  child: SafeArea(
-                    child: Stack(
+                  padding: EdgeInsets.only(
+                    top: MediaQuery.of(context).padding.top,
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Align(
-                          alignment: const Alignment(0.0, 0.2),
-                          child: Text(
-                            _currentUser?.name ?? 'Visión General',
-                            style: theme.appBarTheme.titleTextStyle,
+                        Expanded(
+                          child: StreamBuilder<ClientUser?>(
+                            stream: _userService.getUserStream(
+                              _currentUser!.id,
+                            ),
+                            builder: (context, snapshot) {
+                              final user = snapshot.data ?? _currentUser!;
+                              return GestureDetector(
+                                onTap: () => _editName(user),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Hola,',
+                                      style: TextStyle(
+                                        color: Colors.white.withValues(
+                                          alpha: 0.6,
+                                        ),
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                    Row(
+                                      children: [
+                                        Flexible(
+                                          child: Text(
+                                            user.name,
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 20,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 6),
+                                        const Icon(
+                                          Icons.edit,
+                                          size: 14,
+                                          color: Colors.white30,
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
                           ),
                         ),
-                        Align(
-                          alignment: const Alignment(1.0, 0.2),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                icon: const Icon(
-                                  Icons.tune,
-                                  color: Colors.white70,
-                                ),
-                                onPressed: () => _openCustomizer(config),
+                        Row(
+                          children: [
+                            IconButton(
+                              icon: Icon(
+                                _isEditMode ? Icons.check_circle : Icons.tune,
+                                color: _isEditMode
+                                    ? AppColors.accentGreen
+                                    : Colors.white,
                               ),
+                              onPressed: () {
+                                setState(() => _isEditMode = !_isEditMode);
+                                if (!_isEditMode)
+                                  _preferenceService.saveDashboardConfig(
+                                    config.copyWith(layout: layout),
+                                  );
+                              },
+                            ),
+                            if (!_isEditMode)
                               const GlobalAppBarMenu(
                                 currentScreen: AppScreen.overview,
                               ),
-                            ],
-                          ),
+                          ],
                         ),
                       ],
                     ),
@@ -445,73 +551,53 @@ class _OverviewScreenState extends State<OverviewScreen>
               _currentUser!.role,
             ),
             builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(
-                  child: CircularProgressIndicator(color: AppColors.cyberBlue),
-                );
-              }
-
               final projects = snapshot.data ?? [];
-              final sortedProjects = List<Project>.from(projects);
-              sortedProjects.sort(
-                (a, b) => a.overallProgress.compareTo(b.overallProgress),
-              );
               final activeCount = projects
                   .where((p) => p.status != 'Finalizado')
                   .length;
 
-              // --- CONSTRUCCIÓN DINÁMICA DEL DASHBOARD ---
-              // Iteramos sobre el orden definido en 'config.layout'
-              return ListView(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                children: [
-                  const SizedBox(height: appBarHeight + 20.0),
-
-                  for (String moduleId in config.layout)
-                    Builder(
-                      builder: (context) {
-                        switch (moduleId) {
-                          case 'shortcuts':
-                            if (config.showShortcuts) {
-                              return _buildShortcutsModule();
-                            }
-                            return const SizedBox();
-                          case 'calendar':
-                            if (config.showCalendar) {
-                              return Padding(
-                                padding: const EdgeInsets.only(bottom: 20.0),
-                                child: CalendarWidget(projects: sortedProjects),
-                              );
-                            }
-                            return const SizedBox();
-                          case 'charts':
-                            if (config.showCharts && projects.isNotEmpty) {
-                              return _buildChartsModule(sortedProjects);
-                            }
-                            return const SizedBox();
-                          case 'stats':
-                            // Nota: Stats se integra en 'projects' o se muestra globalmente.
-                            // En esta versión simplificada, 'stats' controla la visibilidad
-                            // de los detalles dentro de las tarjetas de proyecto.
-                            return const SizedBox();
-                          case 'projects':
-                            if (config.showProjects) {
-                              return _buildProjectsModule(
-                                sortedProjects,
-                                config.showStats,
-                                activeCount,
-                              );
-                            }
-                            return const SizedBox();
-                          default:
-                            return const SizedBox();
-                        }
-                      },
-                    ),
-
-                  const SizedBox(height: 30),
-                ],
-              );
+              if (_isEditMode) {
+                // MODO EDICIÓN: Lista vertical simple para reordenar
+                return ReorderableListView(
+                  padding: EdgeInsets.fromLTRB(16.0, topPadding, 16.0, 30.0),
+                  onReorder: (oldIndex, newIndex) {
+                    if (newIndex > oldIndex) newIndex -= 1;
+                    final item = layout.removeAt(oldIndex);
+                    layout.insert(newIndex, item);
+                    _preferenceService.saveDashboardConfig(
+                      config.copyWith(layout: layout),
+                    );
+                  },
+                  proxyDecorator: (child, index, animation) =>
+                      Material(color: Colors.transparent, child: child),
+                  children: [
+                    for (final id in layout)
+                      _buildEditableWrapper(
+                        key: ValueKey(id),
+                        id: id,
+                        isVisible: _isIdVisible(id, config),
+                        config: config,
+                        child: _getWidgetById(
+                          id,
+                          config,
+                          projects,
+                          activeCount,
+                        ),
+                      ),
+                  ],
+                );
+              } else {
+                // MODO VISTA: Grilla Dinámica 2x2
+                return ListView(
+                  padding: EdgeInsets.fromLTRB(16.0, topPadding, 16.0, 30.0),
+                  children: _buildViewLayout(
+                    layout,
+                    config,
+                    projects,
+                    activeCount,
+                  ),
+                );
+              }
             },
           ),
         );

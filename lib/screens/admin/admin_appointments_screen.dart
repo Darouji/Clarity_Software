@@ -16,6 +16,10 @@ class AdminAppointmentsScreen extends StatelessWidget {
     final theme = Theme.of(context);
     const double appBarHeight = 65.0;
 
+    // Padding para que la lista empiece debajo del header translúcido
+    final double topContentPadding =
+        MediaQuery.of(context).padding.top + appBarHeight + 10;
+
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: PreferredSize(
@@ -65,9 +69,24 @@ class AdminAppointmentsScreen extends StatelessWidget {
 
           if (snapshot.hasError) {
             return Center(
-              child: Text(
-                'Error: ${snapshot.error}',
-                style: const TextStyle(color: AppColors.accentRed),
+              child: Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.error_outline,
+                      color: AppColors.accentRed,
+                      size: 40,
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      'Ocurrió un error al cargar las citas:\n${snapshot.error}',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: Colors.white54),
+                    ),
+                  ],
+                ),
               ),
             );
           }
@@ -83,7 +102,7 @@ class AdminAppointmentsScreen extends StatelessWidget {
                   SizedBox(height: 20),
                   Text(
                     'No hay solicitudes pendientes.',
-                    style: TextStyle(color: Colors.white54),
+                    style: TextStyle(color: Colors.white54, fontSize: 16),
                   ),
                 ],
               ),
@@ -91,16 +110,11 @@ class AdminAppointmentsScreen extends StatelessWidget {
           }
 
           return ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            padding: EdgeInsets.fromLTRB(16, topContentPadding, 16, 20),
             itemCount: appointments.length,
             itemBuilder: (context, index) {
               final appointment = appointments[index];
-              final double topPadding = index == 0 ? appBarHeight + 20 : 0;
-
-              return Padding(
-                padding: EdgeInsets.only(top: topPadding),
-                child: AppointmentCard(appointment: appointment),
-              );
+              return AppointmentCard(appointment: appointment);
             },
           );
         },

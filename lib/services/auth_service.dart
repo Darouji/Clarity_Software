@@ -43,7 +43,7 @@ class AuthService {
         return _currentUser;
       }
     } catch (e) {
-      debugPrint("Error en Email Sign-In: $e"); // CORRECCIÓN
+      debugPrint("Error en Email Sign-In: $e");
       rethrow;
     }
     return null;
@@ -75,7 +75,7 @@ class AuthService {
         return _currentUser;
       }
     } catch (e) {
-      debugPrint("Error en Google Sign-In: $e"); // CORRECCIÓN
+      debugPrint("Error en Google Sign-In: $e");
       return null;
     }
     return null;
@@ -104,7 +104,6 @@ class AuthService {
         role: 'client',
         photoUrl: firebaseUser.photoURL ?? '',
       );
-
       await userRef.set(newUser.toJson());
       return newUser;
     }

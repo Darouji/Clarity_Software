@@ -1,7 +1,8 @@
 // lib/services/storage_service.dart
 import 'dart:io';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:path/path.dart' as path;
+import 'package:path/path.dart'
+    as path; // Ahora funciona gracias al pubspec.yaml
 import 'package:flutter/foundation.dart'; // Para debugPrint
 
 class StorageService {
@@ -20,12 +21,10 @@ class StorageService {
 
       final Reference ref = _storage.ref(destination);
       final UploadTask task = ref.putFile(file);
-
       final TaskSnapshot snapshot = await task;
-
       return await snapshot.ref.getDownloadURL();
     } catch (e) {
-      debugPrint('Error en StorageService: $e'); // CORRECCIÓN
+      debugPrint('Error en StorageService: $e');
       rethrow;
     }
   }
@@ -35,7 +34,7 @@ class StorageService {
       final Reference ref = _storage.refFromURL(fileUrl);
       await ref.delete();
     } catch (e) {
-      debugPrint('Error al eliminar archivo: $e'); // CORRECCIÓN
+      debugPrint('Error al eliminar archivo: $e');
     }
   }
 }

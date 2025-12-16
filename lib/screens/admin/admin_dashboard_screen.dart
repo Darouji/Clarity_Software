@@ -1,7 +1,7 @@
 // lib/screens/admin/admin_dashboard_screen.dart
 import 'dart:ui';
 import 'package:clarity_software/models/client_user.dart';
-import 'package:clarity_software/screens/admin/admin_appointments_screen.dart'; // Nuevo Import
+import 'package:clarity_software/screens/admin/admin_appointments_screen.dart';
 import 'package:clarity_software/screens/admin/client_editor_dialog.dart';
 import 'package:clarity_software/screens/admin/admin_project_list_screen.dart';
 import 'package:clarity_software/services/user_service.dart';
@@ -41,7 +41,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       context: context,
       builder: (context) => ClientEditorDialog(client: client),
     );
-
     if (result != null) {
       await _userService.saveUser(result);
     }
@@ -51,6 +50,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     const double appBarHeight = 65.0;
+    // Padding superior corregido
+    final double topContentPadding =
+        MediaQuery.of(context).padding.top + appBarHeight + 20;
 
     return Scaffold(
       extendBodyBehindAppBar: true,
@@ -80,7 +82,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          // --- NUEVO: Botón de Citas/Inbox ---
                           IconButton(
                             icon: const Icon(
                               Icons.notifications_none,
@@ -110,16 +111,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               child: CircularProgressIndicator(color: AppColors.cyberBlue),
             );
           }
-
-          if (snapshot.hasError) {
-            return Center(
-              child: Text(
-                'Error: ${snapshot.error}',
-                style: const TextStyle(color: Colors.white),
-              ),
-            );
-          }
-
           final clients = snapshot.data ?? [];
 
           if (clients.isEmpty) {
@@ -139,14 +130,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           }
 
           return ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            padding: EdgeInsets.fromLTRB(
+              16,
+              topContentPadding,
+              16,
+              80,
+            ), // Padding inferior para el FAB
             itemCount: clients.length,
             itemBuilder: (context, index) {
               final client = clients[index];
-              final double topPadding = index == 0 ? appBarHeight + 20 : 0;
-
               return Padding(
-                padding: EdgeInsets.fromLTRB(0, topPadding, 0, 16.0),
+                padding: const EdgeInsets.only(bottom: 16.0),
                 child: GestureDetector(
                   onTap: () => _navigateToClientProjects(client),
                   child: NeonCard(
