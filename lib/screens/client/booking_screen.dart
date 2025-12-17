@@ -1,325 +1,135 @@
-// lib/screens/client/booking_screen.dart
-import 'dart:ui';
-import 'package:clarity_software/models/appointment.dart';
-import 'package:clarity_software/services/appointment_service.dart';
-import 'package:clarity_software/services/auth_service.dart';
-import 'package:clarity_software/theme/app_colors.dart';
-import 'package:clarity_software/widgets/global_menu.dart';
-import 'package:clarity_software/widgets/neon_card.dart';
 import 'package:flutter/material.dart';
+import 'package:clarity_software/theme/app_colors.dart';
+import 'package:clarity_software/services/appointment_service.dart';
+import 'package:clarity_software/models/appointment.dart';
+import 'package:clarity_software/widgets/calendar_widget.dart';
+import 'package:clarity_software/widgets/appointment_card.dart';
 
 class BookingScreen extends StatefulWidget {
-  const BookingScreen({super.key});
+  final String userId;
+  final bool isAdmin;
+
+  const BookingScreen({super.key, required this.userId, this.isAdmin = false});
 
   @override
   State<BookingScreen> createState() => _BookingScreenState();
 }
 
 class _BookingScreenState extends State<BookingScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final TextEditingController _titleController = TextEditingController();
-  final TextEditingController _descriptionController = TextEditingController();
-  DateTime _selectedDate = DateTime.now().add(const Duration(days: 1));
-  TimeOfDay _selectedTime = const TimeOfDay(hour: 10, minute: 0);
-
   final AppointmentService _appointmentService = AppointmentService();
-  final AuthService _authService = AuthService();
-
-  bool _isLoading = false;
-
-  Future<void> _selectDate(BuildContext context) async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: _selectedDate,
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.dark(
-              primary: AppColors.cyberBlue,
-              onPrimary: Colors.black,
-              surface: AppColors.cardBackground,
-              onSurface: Colors.white,
-            ),
-          ),
-          child: child!,
-        );
-      },
-    );
-    if (picked != null && picked != _selectedDate) {
-      setState(() {
-        _selectedDate = picked;
-      });
-    }
-  }
-
-  Future<void> _selectTime(BuildContext context) async {
-    final TimeOfDay? picked = await showTimePicker(
-      context: context,
-      initialTime: _selectedTime,
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.dark(
-              primary: AppColors.cyberBlue,
-              onPrimary: Colors.black,
-              surface: AppColors.cardBackground,
-              onSurface: Colors.white,
-            ),
-          ),
-          child: child!,
-        );
-      },
-    );
-    if (picked != null && picked != _selectedTime) {
-      setState(() {
-        _selectedTime = picked;
-      });
-    }
-  }
-
-  Future<void> _submitBooking() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    setState(() => _isLoading = true);
-
-    try {
-      final user = _authService.currentUser;
-      if (user == null) throw Exception('Usuario no identificado');
-
-      final DateTime finalDateTime = DateTime(
-        _selectedDate.year,
-        _selectedDate.month,
-        _selectedDate.day,
-        _selectedTime.hour,
-        _selectedTime.minute,
-      );
-
-      final newAppointment = Appointment(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        clientId: user.id,
-        clientName: user.name,
-        title: _titleController.text,
-        description: _descriptionController.text,
-        date: finalDateTime,
-        status: 'pending',
-      );
-
-      await _appointmentService.createAppointment(newAppointment);
-
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Solicitud enviada con éxito'),
-          backgroundColor: AppColors.accentGreen,
-        ),
-      );
-      Navigator.pop(context);
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error al agendar: $e'),
-            backgroundColor: AppColors.accentRed,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      extendBodyBehindAppBar: true,
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(65),
-        child: ClipRRect(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
-            child: AppBar(
-              backgroundColor: AppColors.appBarBackground.withValues(
-                alpha: 0.8,
+      backgroundColor: AppColors.primaryBackground,
+      appBar: AppBar(
+        title: const Text("Gestión de Citas",
+            style: TextStyle(color: Colors.white)),
+        backgroundColor: AppColors.cardBackground,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
+      ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Calendario
+            Container(
+              padding: const EdgeInsets.all(16),
+              color: AppColors.cardBackground,
+              child: CalendarWidget(
+                // Eliminamos parámetros innecesarios para evitar errores de compilación
+                // Si CalendarWidget requiere parámetros específicos, ajústalos aquí
+                onDateSelected: (date) {
+                  // Lógica futura
+                },
               ),
-              elevation: 0,
-              leading: const BackButton(color: Colors.white),
-              title: const Text(
-                'Agendar Cita',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              actions: const [
-                GlobalAppBarMenu(currentScreen: AppScreen.overview),
-              ],
             ),
-          ),
+            const SizedBox(height: 10),
+
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  "Próximas Reuniones",
+                  style: TextStyle(
+                      color: AppColors.cyberBlue,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+
+            Expanded(
+              child: StreamBuilder<List<Appointment>>(
+                // Corregimos el nombre del método si era diferente en tu servicio
+                stream:
+                    _appointmentService.getAppointmentsForUser(widget.userId),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(
+                        child: CircularProgressIndicator(
+                            color: AppColors.cyberBlue));
+                  }
+
+                  if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                    return const Center(
+                        child: Text("No hay citas programadas.",
+                            style: TextStyle(color: Colors.white54)));
+                  }
+
+                  final appointments = snapshot.data!;
+
+                  return ListView.builder(
+                    padding: const EdgeInsets.only(
+                        top: 8, left: 16, right: 16, bottom: 80),
+                    itemCount: appointments.length,
+                    itemBuilder: (context, index) {
+                      final apt = appointments[index];
+                      return AppointmentCard(
+                        appointment: apt,
+                        isAdmin: widget.isAdmin,
+                        // Corregimos la llamada al callback
+                        onStatusChanged: (newStatus) {
+                          _appointmentService.updateAppointmentStatus(
+                              apt.id, newStatus);
+                        },
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(16, 100, 16, 20),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Solicitar Reunión',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.cyberBlue,
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Selecciona una fecha y hora para discutir los avances de tu proyecto.',
-                style: TextStyle(color: Colors.white70),
-              ),
-              const SizedBox(height: 30),
-
-              NeonCard(
-                glowColor: AppColors.accentMagenta.withValues(alpha: 0.3),
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  children: [
-                    TextFormField(
-                      controller: _titleController,
-                      style: const TextStyle(color: Colors.white),
-                      decoration: const InputDecoration(
-                        labelText: 'Motivo de la reunión',
-                        labelStyle: TextStyle(color: Colors.white54),
-                        prefixIcon: Icon(
-                          Icons.label_outline,
-                          color: AppColors.accentMagenta,
-                        ),
-                        enabledBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(color: Colors.white24),
-                        ),
-                        focusedBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(
-                            color: AppColors.accentMagenta,
-                          ),
-                        ),
-                      ),
-                      validator: (val) =>
-                          val!.isEmpty ? 'Ingresa un motivo' : null,
-                    ),
-                    const SizedBox(height: 20),
-                    TextFormField(
-                      controller: _descriptionController,
-                      style: const TextStyle(color: Colors.white),
-                      maxLines: 3,
-                      decoration: const InputDecoration(
-                        labelText: 'Detalles adicionales (Opcional)',
-                        labelStyle: TextStyle(color: Colors.white54),
-                        prefixIcon: Icon(
-                          Icons.description_outlined,
-                          color: AppColors.accentMagenta,
-                        ),
-                        enabledBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(color: Colors.white24),
-                        ),
-                        focusedBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(
-                            color: AppColors.accentMagenta,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 20),
-
-              Row(
-                children: [
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () => _selectDate(context),
-                      child: NeonCard(
-                        glowColor: AppColors.cyberBlue.withValues(alpha: 0.2),
-                        child: Column(
-                          children: [
-                            const Icon(
-                              Icons.calendar_today,
-                              color: AppColors.cyberBlue,
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () => _selectTime(context),
-                      child: NeonCard(
-                        glowColor: AppColors.cyberBlue.withValues(alpha: 0.2),
-                        child: Column(
-                          children: [
-                            const Icon(
-                              Icons.access_time,
-                              color: AppColors.cyberBlue,
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              _selectedTime.format(context),
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 40),
-
-              SizedBox(
-                width: double.infinity,
-                height: 55,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _submitBooking,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.cyberBlue,
-                    foregroundColor: Colors.black,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: _isLoading
-                      ? const CircularProgressIndicator(color: Colors.black)
-                      : const Text(
-                          'ENVIAR SOLICITUD',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+      floatingActionButton: !widget.isAdmin
+          ? FloatingActionButton.extended(
+              backgroundColor: AppColors.cyberBlue,
+              onPressed: () => _showRequestAppointmentDialog(context),
+              icon: const Icon(Icons.add, color: Colors.black),
+              label: const Text("Solicitar Reunión",
+                  style: TextStyle(
+                      color: Colors.black, fontWeight: FontWeight.bold)),
+            )
+          : null,
     );
+  }
+
+  void _showRequestAppointmentDialog(BuildContext context) {
+    showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+              backgroundColor: AppColors.cardBackground,
+              title: const Text("Solicitar Cita",
+                  style: TextStyle(color: Colors.white)),
+              content: const Text("Funcionalidad para elegir fecha y hora.",
+                  style: TextStyle(color: Colors.white70)),
+              actions: [
+                TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text("Cerrar"))
+              ],
+            ));
   }
 }

@@ -1,13 +1,9 @@
-// lib/screens/login_screen.dart
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:clarity_software/main.dart'; // Importante para poder navegar a ClaritySoftware
 import 'package:clarity_software/theme/app_colors.dart';
 import 'package:clarity_software/services/auth_service.dart';
 import 'package:clarity_software/models/client_user.dart';
-import 'package:clarity_software/screens/client/overview_screen.dart';
-import 'package:clarity_software/screens/admin/admin_dashboard_screen.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -25,40 +21,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
   bool _isLoading = false;
   bool _obscurePassword = true;
-  StreamSubscription<User?>? _authSubscription;
-
-  @override
-  void initState() {
-    super.initState();
-    // Escucha activa: Si Firebase dice que hay usuario, navegamos.
-    _authSubscription =
-        FirebaseAuth.instance.authStateChanges().listen((user) async {
-      if (user != null && mounted) {
-        // Usuario detectado, obtenemos datos y navegamos
-        final clientUser = await _authService.signInWithEmailAndPassword(
-                // Este método ahora es redundante para login, pero lo usamos para obtener el rol
-                // Si ya está logueado, authService manejará la obtención de datos
-                user.email ?? '',
-                'dummy_password' // No importa aquí, ya está autenticado
-                ) ??
-            ClientUser(
-              id: user.uid,
-              email: user.email ?? '',
-              name: user.displayName ?? 'Usuario',
-              role: 'client', // Default seguro
-              photoUrl: user.photoURL ?? '',
-            );
-
-        // Pequeño delay para asegurar que el frame esté listo
-        if (!mounted) return;
-        _navigateBasedOnRole(clientUser);
-      }
-    });
-  }
 
   @override
   void dispose() {
-    _authSubscription?.cancel();
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
@@ -70,22 +35,24 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // El método signIn de AuthService ya devuelve el usuario con rol
+      // 1. Intentamos Loguear
       final ClientUser? user = await _authService.signInWithEmailAndPassword(
         _emailController.text.trim(),
         _passwordController.text.trim(),
       );
 
-      // Si el listener de initState no lo capturó (ej. primera vez), lo manejamos aquí
-      if (!mounted) return;
+      // 2. LOGICA DE NAVEGACIÓN FORZADA
+      if (user != null && mounted) {
+        print("LOGIN SCREEN: Login exitoso. Forzando navegación a Home.");
 
-      if (user != null) {
-        _navigateBasedOnRole(user);
-      } else {
-        // Si es null, AuthService capturó un error pero no lanzó excepción
-        if (mounted) {
-          _showErrorSnackBar('Credenciales inválidas o error de conexión.');
-        }
+        // Esto elimina el historial de navegación y reinicia la app en ClaritySoftware
+        // lo que disparará el AuthWrapper de main.dart con el usuario ya cargado.
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => const ClaritySoftware()),
+          (route) => false,
+        );
+      } else if (mounted) {
+        _showErrorSnackBar('Credenciales inválidas o error de conexión.');
       }
     } catch (e) {
       if (mounted) {
@@ -100,12 +67,14 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _handleGoogleSignIn() async {
     setState(() => _isLoading = true);
     try {
-      final ClientUser? user = await _authService.signInWithGoogle();
+      final user = await _authService.signInWithGoogle();
 
-      if (!mounted) return;
-
-      if (user != null) {
-        _navigateBasedOnRole(user);
+      if (user != null && mounted) {
+        print("LOGIN SCREEN: Google Login exitoso. Forzando navegación.");
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => const ClaritySoftware()),
+          (route) => false,
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -121,7 +90,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         backgroundColor: AppColors.cardBackground,
         title: const Text(
           'Recuperar Cuenta',
@@ -153,7 +122,7 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text(
               'Cancelar',
               style: TextStyle(color: Colors.white70),
@@ -162,19 +131,18 @@ class _LoginScreenState extends State<LoginScreen> {
           ElevatedButton(
             onPressed: () async {
               if (resetEmailController.text.isNotEmpty) {
+                final email = resetEmailController.text.trim();
                 try {
-                  await _authService.sendPasswordResetEmail(
-                    resetEmailController.text.trim(),
-                  );
-                  if (!mounted) return;
-                  Navigator.pop(context);
-                  _showSuccessSnackBar('Correo de recuperación enviado.');
+                  Navigator.pop(dialogContext); // Cerramos diálogo primero
+                  await _authService.sendPasswordResetEmail(email);
+                  if (mounted) {
+                    _showSuccessSnackBar(
+                        'Correo de recuperación enviado a $email.');
+                  }
                 } catch (e) {
                   if (mounted) {
-                    Navigator.pop(context);
                     _showErrorSnackBar(
-                      'No se pudo enviar el correo. Verifica que exista.',
-                    );
+                        'No se pudo enviar el correo. Verifica que exista.');
                   }
                 }
               }
@@ -187,25 +155,6 @@ class _LoginScreenState extends State<LoginScreen> {
         ],
       ),
     );
-  }
-
-  void _navigateBasedOnRole(ClientUser user) {
-    if (!mounted) return;
-
-    // Evitamos navegar si ya estamos navegando (check simple)
-    if (!ModalRoute.of(context)!.isCurrent) return;
-
-    if (user.isAdmin) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const AdminDashboardScreen()),
-      );
-    } else {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const OverviewScreen()),
-      );
-    }
   }
 
   void _showErrorSnackBar(String message) {

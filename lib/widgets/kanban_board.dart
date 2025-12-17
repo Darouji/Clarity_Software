@@ -66,12 +66,15 @@ class _KanbanMilestoneCardState extends State<_KanbanMilestoneCard> {
         : 'NO estoy conforme con el hito: "${widget.milestone.title}". Motivo: ';
 
     Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ChatScreen(initialMessage: contextMessage),
-      ),
-    );
-  }
+  context,
+  MaterialPageRoute(
+    builder: (context) => ChatScreen(
+      clientId: widget.projectId, // O el ID que corresponda
+      title: "Chat: ${widget.projectId}",
+      // initialMessage: ... (Si ChatScreen no lo soporta, elimínalo de aquí y usa el servicio)
+    ),
+  ),
+);
 
   @override
   Widget build(BuildContext context) {

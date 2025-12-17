@@ -54,7 +54,8 @@ class _OverviewScreenState extends State<OverviewScreen> {
     );
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
+        // Renombramos context a dialogContext
         backgroundColor: AppColors.cardBackground,
         title: const Text(
           'Editar Nombre',
@@ -76,7 +77,7 @@ class _OverviewScreenState extends State<OverviewScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text(
               'Cancelar',
               style: TextStyle(color: Colors.white54),
@@ -85,11 +86,15 @@ class _OverviewScreenState extends State<OverviewScreen> {
           ElevatedButton(
             onPressed: () async {
               if (nameController.text.isNotEmpty) {
+                // Guardamos la referencia al Navigator antes del await
+                final navigator = Navigator.of(dialogContext);
+
                 await _userService.updateUserName(user.id, nameController.text);
 
-                // CORRECCIÓN FINAL: Chequeo explícito de mounted
-                if (!mounted) return;
-                Navigator.of(context).pop();
+                // Verificamos si el diálogo aún está montado antes de cerrarlo
+                if (navigator.mounted) {
+                  navigator.pop();
+                }
               }
             },
             style: ElevatedButton.styleFrom(

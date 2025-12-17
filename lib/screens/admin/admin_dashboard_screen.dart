@@ -1,233 +1,147 @@
-// lib/screens/admin/admin_dashboard_screen.dart
-import 'dart:ui';
-import 'package:clarity_software/models/client_user.dart';
-import 'package:clarity_software/screens/admin/admin_appointments_screen.dart';
-import 'package:clarity_software/screens/admin/client_editor_dialog.dart';
-import 'package:clarity_software/screens/admin/admin_project_list_screen.dart';
-import 'package:clarity_software/screens/shared/chat_screen.dart';
-import 'package:clarity_software/services/user_service.dart';
-import 'package:clarity_software/theme/app_colors.dart';
-import 'package:clarity_software/widgets/global_menu.dart';
-import 'package:clarity_software/widgets/neon_card.dart';
 import 'package:flutter/material.dart';
+import 'package:clarity_software/theme/app_colors.dart';
+import 'package:clarity_software/services/auth_service.dart';
+import 'package:clarity_software/screens/admin/admin_appointments_screen.dart';
+import 'package:clarity_software/screens/admin/admin_project_list_screen.dart';
 
-class AdminDashboardScreen extends StatefulWidget {
+class AdminDashboardScreen extends StatelessWidget {
   const AdminDashboardScreen({super.key});
 
   @override
-  State<AdminDashboardScreen> createState() => _AdminDashboardScreenState();
-}
-
-class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
-  final UserService _userService = UserService();
-
-  void _navigateToClientProjects(ClientUser client) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => AdminProjectListScreen(client: client),
-      ),
-    );
-  }
-
-  void _navigateToClientChat(ClientUser client) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) =>
-            ChatScreen(targetChatId: client.id, chatTitle: client.name),
-      ),
-    );
-  }
-
-  void _navigateToAppointments() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const AdminAppointmentsScreen()),
-    );
-  }
-
-  void _showClientDialog([ClientUser? client]) async {
-    final result = await showDialog<ClientUser>(
-      context: context,
-      builder: (context) => ClientEditorDialog(client: client),
-    );
-    if (result != null) {
-      await _userService.saveUser(result);
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    const double appBarHeight = 65.0;
-    final double topContentPadding =
-        MediaQuery.of(context).padding.top + appBarHeight + 20;
+    final AuthService authService = AuthService();
 
     return Scaffold(
-      extendBodyBehindAppBar: true,
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(appBarHeight),
-        child: ClipRRect(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
-            child: Container(
-              color: theme.appBarTheme.backgroundColor,
-              child: SafeArea(
-                child: Stack(
-                  children: [
-                    const Align(
-                      alignment: Alignment(0.0, 0.2),
-                      child: Text(
-                        'Panel de Control',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                    Align(
-                      alignment: const Alignment(1.0, 0.2),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(
-                              Icons.notifications_none,
-                              color: Colors.white,
-                            ),
-                            tooltip: 'Solicitudes de Citas',
-                            onPressed: _navigateToAppointments,
-                          ),
-                          const GlobalAppBarMenu(
-                            currentScreen: AppScreen.admin,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+      backgroundColor: AppColors.primaryBackground,
+      appBar: AppBar(
+        backgroundColor: AppColors.primaryBackground,
+        elevation: 0,
+        title: const Text('Panel de Administración',
+            style: TextStyle(color: Colors.white)),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout, color: AppColors.accentMagenta),
+            onPressed: () => authService.signOut(),
           ),
+        ],
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Bienvenido, Admin',
+              style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 20),
+
+            // --- BLOQUE 1: CALENDARIO DE REUNIONES ---
+            _buildAdminOptionBlock(
+              context: context,
+              title: "Calendario de Reuniones",
+              subtitle: "Ver próximas citas y reagendar",
+              icon: Icons.calendar_month,
+              color: AppColors.cyberBlue,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => const AdminAppointmentsScreen()),
+                );
+              },
+            ),
+
+            const SizedBox(height: 16),
+
+            // --- BLOQUE 2: CLIENTES ---
+            _buildAdminOptionBlock(
+              context: context,
+              title: "Gestión de Clientes",
+              subtitle: "Ver lista de clientes y sus proyectos",
+              icon: Icons.people,
+              color: AppColors.accentGreen,
+              onTap: () {
+                // Navegar a la lista de proyectos (que actúa como lista de clientes)
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => const AdminProjectListScreen()),
+                );
+              },
+            ),
+          ],
         ),
       ),
-      body: StreamBuilder<List<ClientUser>>(
-        stream: _userService.getClientsStream(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(color: AppColors.cyberBlue),
-            );
-          }
-          final clients = snapshot.data ?? [];
+    );
+  }
 
-          if (clients.isEmpty) {
-            return const Center(
+  Widget _buildAdminOptionBlock({
+    required BuildContext context,
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: AppColors.cardBackground,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color.withValues(alpha: 0.3)), // CORREGIDO
+          boxShadow: [
+            BoxShadow(
+              color: color.withValues(alpha: 0.1), // CORREGIDO
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.2), // CORREGIDO
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: color, size: 30),
+            ),
+            const SizedBox(width: 20),
+            Expanded(
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.people_outline, size: 60, color: AppColors.grey),
-                  SizedBox(height: 20),
                   Text(
-                    'No hay clientes registrados.',
-                    style: TextStyle(color: AppColors.secondaryText),
+                    title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.7),
+                        fontSize: 14), // CORREGIDO
                   ),
                 ],
               ),
-            );
-          }
-
-          return ListView.builder(
-            padding: EdgeInsets.fromLTRB(16, topContentPadding, 16, 80),
-            itemCount: clients.length,
-            itemBuilder: (context, index) {
-              final client = clients[index];
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 16.0),
-                child: NeonCard(
-                  glowColor: AppColors.cyberBlue.withValues(alpha: 0.4),
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      // Avatar
-                      Container(
-                        width: 50,
-                        height: 50,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: AppColors.cyberBlue.withValues(alpha: 0.1),
-                          border: Border.all(color: AppColors.cyberBlue),
-                        ),
-                        child: client.photoUrl.isNotEmpty
-                            ? ClipOval(
-                                child: Image.network(
-                                  client.photoUrl,
-                                  fit: BoxFit.cover,
-                                ),
-                              )
-                            : const Icon(
-                                Icons.person,
-                                color: AppColors.cyberBlue,
-                              ),
-                      ),
-                      const SizedBox(width: 16),
-                      // Info
-                      Expanded(
-                        child: InkWell(
-                          onTap: () => _navigateToClientProjects(client),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                client.name,
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                client.email,
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  color: AppColors.secondaryText,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      // Acciones: Chat y Editar
-                      IconButton(
-                        icon: const Icon(
-                          Icons.chat_bubble_outline,
-                          color: AppColors.accentOrange,
-                        ),
-                        tooltip: 'Chat con cliente',
-                        onPressed: () => _navigateToClientChat(client),
-                      ),
-                      IconButton(
-                        icon: const Icon(
-                          Icons.edit_outlined,
-                          color: AppColors.grey,
-                        ),
-                        onPressed: () => _showClientDialog(client),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          );
-        },
-      ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: AppColors.accentMagenta,
-        child: const Icon(Icons.person_add_alt_1, color: Colors.white),
-        onPressed: () => _showClientDialog(),
+            ),
+            Icon(Icons.arrow_forward_ios,
+                color: Colors.white.withValues(alpha: 0.5),
+                size: 16), // CORREGIDO
+          ],
+        ),
       ),
     );
   }

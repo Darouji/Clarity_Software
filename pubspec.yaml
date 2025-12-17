@@ -9,36 +9,42 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  
-  # --- Dependencias Principales ---
-  firebase_core: ^2.24.2
-  firebase_auth: ^4.16.0
-  cloud_firestore: ^4.14.0
-  firebase_storage: ^11.6.0
+
+  # --- Dependencias Principales (FIREBASE ACTUALIZADO) ---
+  # Actualizamos a las versiones que soportan compileSdk 36 y Pigeon
+  firebase_core: ^3.6.0
+  firebase_auth: ^5.3.1
+  cloud_firestore: ^5.4.4
+  firebase_storage: ^12.3.0
   
   # --- Autenticación ---
-  google_sign_in: ^6.1.6
+  google_sign_in: ^6.2.1
   
   # --- Utilidades ---
   intl: ^0.19.0
   provider: ^6.1.1
-  path_provider: ^2.1.2
+  path_provider: ^2.1.4
   path: ^1.9.0
   
   # --- UI y Multimedia ---
-  image_picker: ^1.0.7
-  # IMPORTANTE: Actualizado a 8.0.0+ para corregir error de compilación en Android
-  file_picker: ^8.0.0 
+  image_picker: ^1.1.2
+  
+  # MANTENEMOS FILE PICKER MODERNO
+  file_picker: ^8.1.4 
+  
+  # Plugin vital para evitar conflictos en Android 34/36
+  flutter_plugin_android_lifecycle: ^2.0.24 
+
   font_awesome_flutter: ^10.7.0
   signature: ^5.4.1
-  url_launcher: ^6.2.4
+  url_launcher: ^6.3.0
   
-  cupertino_icons: ^1.0.2
+  cupertino_icons: ^1.0.8
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^3.0.0
+  flutter_lints: ^4.0.0
 
 flutter:
   uses-material-design: true

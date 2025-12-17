@@ -13,22 +13,27 @@ class UserService {
         .where('role', isEqualTo: 'client')
         .snapshots()
         .map((snapshot) {
-          return snapshot.docs.map((doc) {
-            return ClientUser.fromJson(doc.data());
-          }).toList();
-        });
+      return snapshot.docs.map((doc) {
+        return ClientUser.fromJson(doc.data());
+      }).toList();
+    });
   }
 
-  // --- OBTENER UN USUARIO POR ID ---
+  // --- OBTENER UN USUARIO POR ID (ROBUSTO) ---
   Future<ClientUser?> getUserById(String id) async {
-    final doc = await _db.collection(_collection).doc(id).get();
-    if (doc.exists) {
-      return ClientUser.fromJson(doc.data()!);
+    try {
+      final doc = await _db.collection(_collection).doc(id).get();
+      if (doc.exists && doc.data() != null) {
+        return ClientUser.fromJson(doc.data()!);
+      }
+    } catch (e) {
+      print("Error obteniendo usuario: $e");
+      // Si falla, retornamos null para que el AuthWrapper al menos cargue la vista de Cliente por defecto
     }
     return null;
   }
 
-  // --- STREAM DE UN SOLO USUARIO (Para el Banner en tiempo real) ---
+  // --- STREAM DE UN SOLO USUARIO ---
   Stream<ClientUser?> getUserStream(String userId) {
     return _db.collection(_collection).doc(userId).snapshots().map((doc) {
       if (doc.exists && doc.data() != null) {
@@ -66,7 +71,7 @@ class UserService {
     });
   }
 
-  // --- NUEVO: ACTUALIZAR NOMBRE ---
+  // --- ACTUALIZAR NOMBRE ---
   Future<void> updateUserName(String userId, String newName) async {
     await _db.collection(_collection).doc(userId).update({'name': newName});
   }
