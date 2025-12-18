@@ -50,6 +50,14 @@ class AppointmentService {
     });
   }
 
+  // Proponer reagendamiento (Admin)
+  Future<void> proposeReschedule(String appointmentId, DateTime newDate) async {
+    await _db.collection('appointments').doc(appointmentId).update({
+      'date': newDate.toIso8601String(),
+      'status': 'reschedule_proposal',
+    });
+  }
+
   // Eliminar cita
   Future<void> deleteAppointment(String appointmentId) async {
     await _db.collection('appointments').doc(appointmentId).delete();

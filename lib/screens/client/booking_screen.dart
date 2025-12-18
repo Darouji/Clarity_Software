@@ -1,8 +1,8 @@
+// lib/screens/client/booking_screen.dart
 import 'package:flutter/material.dart';
 import 'package:clarity_software/theme/app_colors.dart';
 import 'package:clarity_software/services/appointment_service.dart';
 import 'package:clarity_software/models/appointment.dart';
-import 'package:clarity_software/widgets/calendar_widget.dart';
 import 'package:clarity_software/widgets/appointment_card.dart';
 
 class BookingScreen extends StatefulWidget {
@@ -23,77 +23,129 @@ class _BookingScreenState extends State<BookingScreen> {
     return Scaffold(
       backgroundColor: AppColors.primaryBackground,
       appBar: AppBar(
-        title: const Text("Gestión de Citas",
-            style: TextStyle(color: Colors.white)),
+        title: const Text(
+          "Gestión de Citas",
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
         backgroundColor: AppColors.cardBackground,
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: SafeArea(
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Calendario
-            Container(
-              padding: const EdgeInsets.all(16),
-              color: AppColors.cardBackground,
-              // CORRECCIÓN: CalendarWidget requiere 'projects' y no tiene 'onDateSelected'
-              child: const CalendarWidget(
-                projects: [], // Lista vacía temporalmente para cumplir el contrato
-              ),
-            ),
-            const SizedBox(height: 10),
-
             const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  "Próximas Reuniones",
-                  style: TextStyle(
-                      color: AppColors.cyberBlue,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold),
+              padding: EdgeInsets.fromLTRB(16, 24, 16, 16),
+              child: Text(
+                "Tus Reuniones",
+                style: TextStyle(
+                  color: AppColors.cyberBlue,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
             ),
-
             Expanded(
               child: StreamBuilder<List<Appointment>>(
-                // CORRECCIÓN: Método correcto es getClientAppointmentsStream
                 stream: _appointmentService
                     .getClientAppointmentsStream(widget.userId),
                 builder: (context, snapshot) {
+                  // Manejo visual de errores del Stream
+                  if (snapshot.hasError) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Text(
+                          "No se pudieron cargar las citas.\nVerifica tu conexión o permisos.\nError: ${snapshot.error}",
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: AppColors.accentRed),
+                        ),
+                      ),
+                    );
+                  }
+
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(
-                        child: CircularProgressIndicator(
-                            color: AppColors.cyberBlue));
+                      child:
+                          CircularProgressIndicator(color: AppColors.cyberBlue),
+                    );
                   }
 
                   if (!snapshot.hasData || snapshot.data!.isEmpty) {
                     return const Center(
-                        child: Text("No hay citas programadas.",
-                            style: TextStyle(color: Colors.white54)));
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.event_busy,
+                              size: 50, color: Colors.white24),
+                          SizedBox(height: 16),
+                          Text(
+                            "No tienes citas programadas.",
+                            style: TextStyle(color: Colors.white54),
+                          ),
+                        ],
+                      ),
+                    );
                   }
 
                   final appointments = snapshot.data!;
 
                   return ListView.builder(
-                    padding: const EdgeInsets.only(
-                        top: 8, left: 16, right: 16, bottom: 80),
+                    physics: const BouncingScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
                     itemCount: appointments.length,
                     itemBuilder: (context, index) {
                       final apt = appointments[index];
                       return AppointmentCard(
                         appointment: apt,
                         isAdmin: widget.isAdmin,
-                        // CORRECCIÓN: AppointmentCard usa onApprove/onReject, no onStatusChanged
-                        onApprove: () {
-                          _appointmentService.updateAppointmentStatus(
-                              apt.id, 'approved');
+                        // CORRECCIÓN: Try-Catch para evitar cierres inesperados
+                        onApprove: () async {
+                          try {
+                            await _appointmentService.updateAppointmentStatus(
+                                apt.id, 'approved');
+                            if (!mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text("Cita confirmada exitosamente"),
+                                backgroundColor: AppColors.accentGreen,
+                              ),
+                            );
+                          } catch (e) {
+                            if (!mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                    "Error al confirmar: Verifica tus permisos.\n$e"),
+                                backgroundColor: AppColors.accentRed,
+                                duration: const Duration(seconds: 4),
+                              ),
+                            );
+                          }
                         },
-                        onReject: () {
-                          _appointmentService.updateAppointmentStatus(
-                              apt.id, 'rejected');
+                        onReject: () async {
+                          try {
+                            await _appointmentService.updateAppointmentStatus(
+                                apt.id, 'rejected');
+                            if (!mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text("Cita rechazada"),
+                                backgroundColor: AppColors.accentRed,
+                              ),
+                            );
+                          } catch (e) {
+                            if (!mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                    "Error al rechazar: Verifica tus permisos.\n$e"),
+                                backgroundColor: AppColors.accentRed,
+                                duration: const Duration(seconds: 4),
+                              ),
+                            );
+                          }
                         },
                       );
                     },
@@ -106,31 +158,25 @@ class _BookingScreenState extends State<BookingScreen> {
       ),
       floatingActionButton: !widget.isAdmin
           ? FloatingActionButton.extended(
-              backgroundColor: AppColors.cyberBlue,
-              onPressed: () => _showRequestAppointmentDialog(context),
-              icon: const Icon(Icons.add, color: Colors.black),
-              label: const Text("Solicitar Reunión",
-                  style: TextStyle(
-                      color: Colors.black, fontWeight: FontWeight.bold)),
+              backgroundColor: AppColors.cyberBlue.withValues(alpha: 0.5),
+              elevation: 0,
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                        "La solicitud de citas estará disponible próximamente."),
+                    backgroundColor: AppColors.cardBackground,
+                  ),
+                );
+              },
+              icon: const Icon(Icons.add_alarm, color: Colors.white54),
+              label: const Text(
+                "Solicitar Reunión",
+                style: TextStyle(
+                    color: Colors.white54, fontWeight: FontWeight.bold),
+              ),
             )
           : null,
     );
-  }
-
-  void _showRequestAppointmentDialog(BuildContext context) {
-    showDialog(
-        context: context,
-        builder: (_) => AlertDialog(
-              backgroundColor: AppColors.cardBackground,
-              title: const Text("Solicitar Cita",
-                  style: TextStyle(color: Colors.white)),
-              content: const Text("Funcionalidad para elegir fecha y hora.",
-                  style: TextStyle(color: Colors.white70)),
-              actions: [
-                TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text("Cerrar"))
-              ],
-            ));
   }
 }

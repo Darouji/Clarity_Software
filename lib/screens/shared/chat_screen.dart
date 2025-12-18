@@ -1,3 +1,4 @@
+// lib/screens/shared/chat_screen.dart
 import 'package:flutter/material.dart';
 import 'package:clarity_software/theme/app_colors.dart';
 import 'package:clarity_software/models/chat_message.dart';
@@ -157,30 +158,35 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Widget _buildInputArea() {
     return Container(
-      padding: const EdgeInsets.all(8),
-      color: AppColors.cardBackground,
-      child: Row(
-        children: [
-          IconButton(
-            icon: const Icon(Icons.image, color: AppColors.cyberBlue),
-            onPressed: _pickImage,
-          ),
-          Expanded(
-            child: TextField(
-              controller: _messageController,
-              style: const TextStyle(color: Colors.white),
-              decoration: const InputDecoration(
-                hintText: "Escribe un mensaje...",
-                hintStyle: TextStyle(color: Colors.white54),
-                border: InputBorder.none,
+      color: AppColors.cardBackground, // El color se extiende al fondo
+      child: SafeArea(
+        top: false, // No afectar la parte superior del input
+        child: Padding(
+          padding: const EdgeInsets.all(8),
+          child: Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.image, color: AppColors.cyberBlue),
+                onPressed: _pickImage,
               ),
-            ),
+              Expanded(
+                child: TextField(
+                  controller: _messageController,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: const InputDecoration(
+                    hintText: "Escribe un mensaje...",
+                    hintStyle: TextStyle(color: Colors.white54),
+                    border: InputBorder.none,
+                  ),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.send, color: AppColors.cyberBlue),
+                onPressed: _sendMessage,
+              ),
+            ],
           ),
-          IconButton(
-            icon: const Icon(Icons.send, color: AppColors.cyberBlue),
-            onPressed: _sendMessage,
-          ),
-        ],
+        ),
       ),
     );
   }

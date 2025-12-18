@@ -7,9 +7,13 @@ class ClientUser {
   final String role; // 'admin' o 'client'
   final String photoUrl;
 
-  // --- NUEVO: Propiedades de Firma Digital ---
-  final String? signatureUrl; // URL de su firma actual
-  final bool hasSignatureConfigured; // Helper para saber si ya la configuró
+  // Nuevos campos requeridos por la UI
+  final String? phoneNumber;
+  final String? companyName;
+
+  // Propiedades de Firma Digital
+  final String? signatureUrl;
+  final bool hasSignatureConfigured;
 
   ClientUser({
     required this.id,
@@ -17,10 +21,17 @@ class ClientUser {
     required this.email,
     required this.role,
     this.photoUrl = '',
-    // --- NUEVO ---
+    this.phoneNumber,
+    this.companyName,
     this.signatureUrl,
     this.hasSignatureConfigured = false,
   });
+
+  // Getter para compatibilidad con el código que busca 'displayName'
+  String get displayName => name;
+
+  // Helper para saber si es admin
+  bool get isAdmin => role == 'admin';
 
   factory ClientUser.fromJson(Map<String, dynamic> json) {
     return ClientUser(
@@ -29,7 +40,8 @@ class ClientUser {
       email: json['email'] ?? '',
       role: json['role'] ?? 'client',
       photoUrl: json['photoUrl'] ?? '',
-      // --- NUEVO ---
+      phoneNumber: json['phoneNumber'],
+      companyName: json['companyName'],
       signatureUrl: json['signatureUrl'],
       hasSignatureConfigured: json['hasSignatureConfigured'] ?? false,
     );
@@ -42,12 +54,10 @@ class ClientUser {
       'email': email,
       'role': role,
       'photoUrl': photoUrl,
-      // --- NUEVO ---
+      'phoneNumber': phoneNumber,
+      'companyName': companyName,
       'signatureUrl': signatureUrl,
       'hasSignatureConfigured': hasSignatureConfigured,
     };
   }
-
-  // Helper para saber si es admin
-  bool get isAdmin => role == 'admin';
 }

@@ -1,148 +1,121 @@
-import 'package:flutter/material.dart';
+// lib/screens/admin/admin_dashboard_screen.dart
+import 'dart:ui';
 import 'package:clarity_software/theme/app_colors.dart';
-import 'package:clarity_software/services/auth_service.dart';
-import 'package:clarity_software/screens/admin/admin_appointments_screen.dart';
+import 'package:clarity_software/widgets/global_menu.dart';
+import 'package:flutter/material.dart';
 import 'package:clarity_software/screens/admin/admin_project_list_screen.dart';
+import 'package:clarity_software/screens/admin/admin_appointments_screen.dart';
+import 'package:clarity_software/screens/admin/admin_clients_screen.dart'; // Nueva importación
+import 'package:clarity_software/widgets/dashboard_tile.dart';
 
 class AdminDashboardScreen extends StatelessWidget {
   const AdminDashboardScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final AuthService authService = AuthService();
-
     return Scaffold(
-      backgroundColor: AppColors.primaryBackground,
-      appBar: AppBar(
-        backgroundColor: AppColors.primaryBackground,
-        elevation: 0,
-        title: const Text('Panel de Administración',
-            style: TextStyle(color: Colors.white)),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout, color: AppColors.accentMagenta),
-            onPressed: () => authService.signOut(),
+      extendBodyBehindAppBar: true,
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(65),
+        child: ClipRRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+            child: AppBar(
+              backgroundColor: AppColors.appBarBackground.withValues(
+                alpha: 0.8,
+              ),
+              elevation: 0,
+              title: const Text(
+                'Panel de Administración',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              actions: const [GlobalAppBarMenu(currentScreen: AppScreen.admin)],
+            ),
           ),
-        ],
+        ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(16, 100, 16, 20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Bienvenido, Admin',
+              'Bienvenido, Administrador',
               style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 20),
-
-            // --- BLOQUE 1: CALENDARIO DE REUNIONES ---
-            _buildAdminOptionBlock(
-              context: context,
-              title: "Calendario de Reuniones",
-              subtitle: "Ver próximas citas y reagendar",
-              icon: Icons.calendar_month,
-              color: AppColors.cyberBlue,
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (context) => const AdminAppointmentsScreen()),
-                );
-              },
-            ),
-
-            const SizedBox(height: 16),
-
-            // --- BLOQUE 2: CLIENTES ---
-            _buildAdminOptionBlock(
-              context: context,
-              title: "Gestión de Clientes",
-              subtitle: "Ver lista de clientes y sus proyectos",
-              icon: Icons.people,
-              color: AppColors.accentGreen,
-              onTap: () {
-                // CORRECCIÓN: Evitar llamada inválida a AdminProjectListScreen
-                // que requiere un argumento 'client'.
-                // TODO: Implementar pantalla de selección de clientes (ClientListScreen)
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content:
-                        Text('Funcionalidad de Lista de Clientes pendiente.'),
-                    backgroundColor: AppColors.accentOrange,
-                  ),
-                );
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAdminOptionBlock({
-    required BuildContext context,
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: AppColors.cardBackground,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withValues(alpha: 0.3)),
-          boxShadow: [
-            BoxShadow(
-              color: color.withValues(alpha: 0.1),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.2),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, color: color, size: 30),
-            ),
-            const SizedBox(width: 20),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.7),
-                        fontSize: 14),
-                  ),
-                ],
+                color: Colors.white,
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
               ),
             ),
-            Icon(Icons.arrow_forward_ios,
-                color: Colors.white.withValues(alpha: 0.5), size: 16),
+            const SizedBox(height: 24),
+
+            // Dashboard Grid
+            GridView.count(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisCount: 2,
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
+              children: [
+                // Bloque 1: Proyectos
+                DashboardTile(
+                  title: 'Proyectos',
+                  icon: Icons.folder_open,
+                  color: AppColors.cyberBlue,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const AdminProjectListScreen(),
+                      ),
+                    );
+                  },
+                ),
+                // Bloque 2: Citas (Calendario de Reuniones)
+                DashboardTile(
+                  title: 'Citas',
+                  icon: Icons.calendar_month,
+                  color: AppColors.accentGreen,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const AdminAppointmentsScreen(),
+                      ),
+                    );
+                  },
+                ),
+                // Bloque 3: Clientes (Acceso directo a la lista)
+                DashboardTile(
+                  title: 'Clientes',
+                  icon: Icons.people_outline,
+                  color: AppColors.accentPurple,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const AdminClientsScreen(),
+                      ),
+                    );
+                  },
+                ),
+                // Bloque 4: Finanzas (Placeholder)
+                DashboardTile(
+                  title: 'Finanzas',
+                  icon: Icons.attach_money,
+                  color: AppColors.accentOrange,
+                  onTap: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                          content: Text('Módulo de Finanzas próximamente')),
+                    );
+                  },
+                ),
+              ],
+            ),
           ],
         ),
       ),

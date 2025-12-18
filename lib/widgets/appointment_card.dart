@@ -8,6 +8,7 @@ class AppointmentCard extends StatelessWidget {
   final Appointment appointment;
   final VoidCallback? onApprove;
   final VoidCallback? onReject;
+  final VoidCallback? onReschedule; // Nuevo callback para reagendar
   final bool isAdmin;
 
   const AppointmentCard({
@@ -15,6 +16,7 @@ class AppointmentCard extends StatelessWidget {
     required this.appointment,
     this.onApprove,
     this.onReject,
+    this.onReschedule,
     this.isAdmin = false,
   });
 
@@ -24,7 +26,7 @@ class AppointmentCard extends StatelessWidget {
     String statusText;
     IconData statusIcon;
 
-    // Lógica basada en String (como definimos en el modelo)
+    // Lógica basada en String
     switch (appointment.status) {
       case 'approved':
         statusColor = AppColors.accentGreen;
@@ -35,6 +37,11 @@ class AppointmentCard extends StatelessWidget {
         statusColor = AppColors.accentRed;
         statusText = 'Rechazada';
         statusIcon = Icons.cancel_outlined;
+        break;
+      case 'reschedule_proposal':
+        statusColor = AppColors.cyberBlue;
+        statusText = 'Propuesta de Cambio';
+        statusIcon = Icons.update;
         break;
       case 'pending':
       default:
@@ -96,7 +103,7 @@ class AppointmentCard extends StatelessWidget {
             ),
             const SizedBox(height: 12),
 
-            // Fecha y Hora (Usando 'date' del modelo)
+            // Fecha y Hora
             Row(
               children: [
                 const Icon(
@@ -124,7 +131,7 @@ class AppointmentCard extends StatelessWidget {
             ),
             const SizedBox(height: 8),
 
-            // Motivo (Usando 'title' del modelo)
+            // Motivo
             Text(
               appointment.title,
               style: const TextStyle(
@@ -149,36 +156,76 @@ class AppointmentCard extends StatelessWidget {
               ),
             ],
 
-            // Botones de acción (Solo si es Admin y está pendiente)
-            if (isAdmin && appointment.status == 'pending') ...[
-              const SizedBox(height: 16),
-              const Divider(color: Colors.white10),
-              const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
+            // --- ACCIONES (BOTONES) ---
+            const SizedBox(height: 16),
+            const Divider(color: Colors.white10),
+            const SizedBox(height: 8),
+
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                // ADMIN: Botón de Reagendar (Siempre visible si no está rechazada final)
+                if (isAdmin && appointment.status != 'rejected') ...[
+                  TextButton.icon(
+                    onPressed: onReschedule,
+                    icon: const Icon(Icons.edit_calendar,
+                        size: 16, color: AppColors.cyberBlue),
+                    label: const Text(
+                      'Reagendar',
+                      style: TextStyle(color: AppColors.cyberBlue),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                ],
+
+                // ADMIN: Aprobar/Rechazar (Solo si pendiente)
+                if (isAdmin && appointment.status == 'pending') ...[
                   OutlinedButton(
                     onPressed: onReject,
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.accentRed,
                       side: const BorderSide(color: AppColors.accentRed),
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
                     ),
                     child: const Text('Rechazar'),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 8),
                   ElevatedButton(
                     onPressed: onApprove,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.accentGreen,
                       foregroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
                     ),
                     child: const Text('Aprobar'),
                   ),
                 ],
-              ),
-            ],
+
+                // CLIENTE: Confirmar/Rechazar Propuesta de Cambio
+                if (!isAdmin &&
+                    appointment.status == 'reschedule_proposal') ...[
+                  OutlinedButton(
+                    onPressed: onReject,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.accentRed,
+                      side: const BorderSide(color: AppColors.accentRed),
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                    ),
+                    child: const Text('Rechazar'),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: onApprove, // Aprueba el cambio
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.cyberBlue,
+                      foregroundColor: Colors.black,
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                    ),
+                    child: const Text('Confirmar Cambio'),
+                  ),
+                ],
+              ],
+            ),
           ],
         ),
       ),

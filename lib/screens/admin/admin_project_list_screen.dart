@@ -12,9 +12,9 @@ import 'package:clarity_software/widgets/neon_card.dart';
 import 'package:flutter/material.dart';
 
 class AdminProjectListScreen extends StatefulWidget {
-  final ClientUser client;
+  final ClientUser? client; // CORREGIDO: Ahora es opcional
 
-  const AdminProjectListScreen({super.key, required this.client});
+  const AdminProjectListScreen({super.key, this.client});
 
   @override
   State<AdminProjectListScreen> createState() => _AdminProjectListScreenState();
@@ -68,8 +68,9 @@ class _AdminProjectListScreenState extends State<AdminProjectListScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) =>
-            ProjectEditorScreen(project: project, clientId: widget.client.id),
+        builder: (context) => ProjectEditorScreen(
+            project: project,
+            clientId: widget.client?.id ?? ''), // Manejo seguro de null
       ),
     );
   }
@@ -97,6 +98,16 @@ class _AdminProjectListScreenState extends State<AdminProjectListScreen> {
     final double topPadding =
         MediaQuery.of(context).padding.top + appBarHeight + 20;
 
+    // Si no hay cliente específico, asumimos "Todos los Proyectos"
+    final screenTitle =
+        widget.client != null ? widget.client!.name : 'Todos los Proyectos';
+
+    // Determinar qué stream usar
+    final Stream<List<Project>> projectStream = widget.client != null
+        ? _projectService.getProjectsStream(widget.client!.id, 'client')
+        : _projectService.getProjectsStream(
+            '', 'admin'); // Asumiendo que admin recupera todo si ID vacío
+
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: PreferredSize(
@@ -116,7 +127,7 @@ class _AdminProjectListScreenState extends State<AdminProjectListScreen> {
                     Align(
                       alignment: const Alignment(0.0, 0.2),
                       child: Text(
-                        widget.client.name,
+                        screenTitle,
                         style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -136,7 +147,7 @@ class _AdminProjectListScreenState extends State<AdminProjectListScreen> {
         ),
       ),
       body: StreamBuilder<List<Project>>(
-        stream: _projectService.getProjectsStream(widget.client.id, 'client'),
+        stream: projectStream,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(
@@ -167,7 +178,7 @@ class _AdminProjectListScreenState extends State<AdminProjectListScreen> {
                   ),
                   SizedBox(height: 20),
                   Text(
-                    'Este cliente no tiene proyectos.',
+                    'No hay proyectos disponibles.',
                     style: TextStyle(color: AppColors.secondaryText),
                   ),
                 ],
@@ -188,6 +199,7 @@ class _AdminProjectListScreenState extends State<AdminProjectListScreen> {
                   onTap: () => _viewProjectDetails(project),
                   child: NeonCard(
                     glowColor: glowColor,
+                    onTap: () => _viewProjectDetails(project), // Tap habilitado
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -246,11 +258,11 @@ class _AdminProjectListScreenState extends State<AdminProjectListScreen> {
                           physics: const NeverScrollableScrollPhysics(),
                           gridDelegate:
                               const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 2,
-                                mainAxisSpacing: 8.0,
-                                crossAxisSpacing: 8.0,
-                                childAspectRatio: 2.5,
-                              ),
+                            crossAxisCount: 2,
+                            mainAxisSpacing: 8.0,
+                            crossAxisSpacing: 8.0,
+                            childAspectRatio: 2.5,
+                          ),
                           children: [
                             InfoBlock(
                               icon: Icons.flag_outlined,
@@ -291,7 +303,6 @@ class _AdminProjectListScreenState extends State<AdminProjectListScreen> {
         backgroundColor: AppColors.accentMagenta,
         onPressed: () => _editProject(null),
         tooltip: 'Crear Nuevo Proyecto',
-        // CORRECCIÓN: 'child' ahora es el último argumento
         child: const Icon(Icons.add, color: Colors.white),
       ),
     );

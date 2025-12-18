@@ -6,12 +6,14 @@ class NeonCard extends StatelessWidget {
   final Widget child;
   final Color glowColor;
   final EdgeInsetsGeometry? padding;
+  final VoidCallback? onTap; // Agregado para soportar clics
 
   const NeonCard({
     super.key,
     required this.child,
     required this.glowColor,
     this.padding = const EdgeInsets.all(16.0),
+    this.onTap,
   });
 
   @override
@@ -19,26 +21,31 @@ class NeonCard extends StatelessWidget {
     final cardBackgroundColor = AppColors.cardBlack.withAlpha(240);
 
     return Container(
-      padding: padding,
       decoration: BoxDecoration(
         color: cardBackgroundColor,
         borderRadius: BorderRadius.circular(15.0),
-        // 1. Borde con el color del proyecto
         border: Border.all(color: glowColor, width: 1.5),
-        // 2. Brillo (BoxShadow) con el alfa en 40
         boxShadow: [
           BoxShadow(
-            // --- CAMBIO AQUÍ ---
-            // Aplicamos el alfa de 40 que definiste.
-            color: glowColor.withAlpha(40),
-            // --- FIN DEL CAMBIO ---
+            color:
+                glowColor.withValues(alpha: 0.15), // Ajuste seguro de opacidad
             blurRadius: 12,
             spreadRadius: 1,
-            offset: const Offset(0, 0), // Sombra centrada
+            offset: const Offset(0, 0),
           ),
         ],
       ),
-      child: child,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(15.0),
+          child: Padding(
+            padding: padding!,
+            child: child,
+          ),
+        ),
+      ),
     );
   }
 }
