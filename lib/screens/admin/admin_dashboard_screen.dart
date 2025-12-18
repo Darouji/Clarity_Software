@@ -65,11 +65,15 @@ class AdminDashboardScreen extends StatelessWidget {
               icon: Icons.people,
               color: AppColors.accentGreen,
               onTap: () {
-                // Navegar a la lista de proyectos (que actúa como lista de clientes)
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (context) => const AdminProjectListScreen()),
+                // CORRECCIÓN: Evitar llamada inválida a AdminProjectListScreen
+                // que requiere un argumento 'client'.
+                // TODO: Implementar pantalla de selección de clientes (ClientListScreen)
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content:
+                        Text('Funcionalidad de Lista de Clientes pendiente.'),
+                    backgroundColor: AppColors.accentOrange,
+                  ),
                 );
               },
             ),
@@ -95,10 +99,10 @@ class AdminDashboardScreen extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.cardBackground,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withValues(alpha: 0.3)), // CORREGIDO
+          border: Border.all(color: color.withValues(alpha: 0.3)),
           boxShadow: [
             BoxShadow(
-              color: color.withValues(alpha: 0.1), // CORREGIDO
+              color: color.withValues(alpha: 0.1),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -109,7 +113,7 @@ class AdminDashboardScreen extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.2), // CORREGIDO
+                color: color.withValues(alpha: 0.2),
                 shape: BoxShape.circle,
               ),
               child: Icon(icon, color: color, size: 30),
@@ -132,14 +136,13 @@ class AdminDashboardScreen extends StatelessWidget {
                     subtitle,
                     style: TextStyle(
                         color: Colors.white.withValues(alpha: 0.7),
-                        fontSize: 14), // CORREGIDO
+                        fontSize: 14),
                   ),
                 ],
               ),
             ),
             Icon(Icons.arrow_forward_ios,
-                color: Colors.white.withValues(alpha: 0.5),
-                size: 16), // CORREGIDO
+                color: Colors.white.withValues(alpha: 0.5), size: 16),
           ],
         ),
       ),

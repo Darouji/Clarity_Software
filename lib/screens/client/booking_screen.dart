@@ -36,12 +36,9 @@ class _BookingScreenState extends State<BookingScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               color: AppColors.cardBackground,
-              child: CalendarWidget(
-                // Eliminamos parámetros innecesarios para evitar errores de compilación
-                // Si CalendarWidget requiere parámetros específicos, ajústalos aquí
-                onDateSelected: (date) {
-                  // Lógica futura
-                },
+              // CORRECCIÓN: CalendarWidget requiere 'projects' y no tiene 'onDateSelected'
+              child: const CalendarWidget(
+                projects: [], // Lista vacía temporalmente para cumplir el contrato
               ),
             ),
             const SizedBox(height: 10),
@@ -62,9 +59,9 @@ class _BookingScreenState extends State<BookingScreen> {
 
             Expanded(
               child: StreamBuilder<List<Appointment>>(
-                // Corregimos el nombre del método si era diferente en tu servicio
-                stream:
-                    _appointmentService.getAppointmentsForUser(widget.userId),
+                // CORRECCIÓN: Método correcto es getClientAppointmentsStream
+                stream: _appointmentService
+                    .getClientAppointmentsStream(widget.userId),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(
@@ -89,10 +86,14 @@ class _BookingScreenState extends State<BookingScreen> {
                       return AppointmentCard(
                         appointment: apt,
                         isAdmin: widget.isAdmin,
-                        // Corregimos la llamada al callback
-                        onStatusChanged: (newStatus) {
+                        // CORRECCIÓN: AppointmentCard usa onApprove/onReject, no onStatusChanged
+                        onApprove: () {
                           _appointmentService.updateAppointmentStatus(
-                              apt.id, newStatus);
+                              apt.id, 'approved');
+                        },
+                        onReject: () {
+                          _appointmentService.updateAppointmentStatus(
+                              apt.id, 'rejected');
                         },
                       );
                     },

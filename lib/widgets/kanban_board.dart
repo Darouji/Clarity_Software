@@ -66,15 +66,16 @@ class _KanbanMilestoneCardState extends State<_KanbanMilestoneCard> {
         : 'NO estoy conforme con el hito: "${widget.milestone.title}". Motivo: ';
 
     Navigator.push(
-  context,
-  MaterialPageRoute(
-    builder: (context) => ChatScreen(
-      clientId: widget.projectId, // O el ID que corresponda
-      title: "Chat: ${widget.projectId}",
-      // initialMessage: ... (Si ChatScreen no lo soporta, elimínalo de aquí y usa el servicio)
-    ),
-  ),
-);
+      context,
+      MaterialPageRoute(
+        builder: (context) => ChatScreen(
+          // CORRECCIÓN: Usar widget.project.id en lugar de widget.projectId
+          clientId: widget.project.id,
+          title: "Chat: ${widget.project.id}",
+        ),
+      ),
+    );
+  } // CORRECCIÓN: Faltaba esta llave de cierre del método
 
   @override
   Widget build(BuildContext context) {
@@ -116,7 +117,9 @@ class _KanbanMilestoneCardState extends State<_KanbanMilestoneCard> {
                       Expanded(
                         child: Text(
                           widget.milestone.title,
-                          style: Theme.of(context).textTheme.bodyLarge
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodyLarge
                               ?.copyWith(fontWeight: FontWeight.bold),
                         ),
                       ),
@@ -157,9 +160,9 @@ class _KanbanMilestoneCardState extends State<_KanbanMilestoneCard> {
                       Text(
                         '${(widget.milestone.progress * 100).toStringAsFixed(0)}%',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: progressColor,
-                          fontWeight: FontWeight.bold,
-                        ),
+                              color: progressColor,
+                              fontWeight: FontWeight.bold,
+                            ),
                       ),
                     ],
                   ),
@@ -197,7 +200,6 @@ class _KanbanMilestoneCardState extends State<_KanbanMilestoneCard> {
         children: [
           const Divider(color: AppColors.grey),
           const SizedBox(height: 12),
-
           Row(
             children: [
               Expanded(
@@ -231,7 +233,6 @@ class _KanbanMilestoneCardState extends State<_KanbanMilestoneCard> {
               ),
             ],
           ),
-
           if (feedbackHistory.isNotEmpty) ...[
             const SizedBox(height: 16),
             const Divider(color: AppColors.grey),
@@ -249,9 +250,8 @@ class _KanbanMilestoneCardState extends State<_KanbanMilestoneCard> {
 
   Widget _buildHistoryTile(FeedbackMessage msg) {
     final bool isApproval = msg.type == FeedbackType.approval;
-    final Color color = isApproval
-        ? AppColors.accentGreen
-        : AppColors.accentRed;
+    final Color color =
+        isApproval ? AppColors.accentGreen : AppColors.accentRed;
     final IconData icon = isApproval ? Icons.check_circle : Icons.error_outline;
 
     return Container(

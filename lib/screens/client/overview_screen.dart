@@ -55,7 +55,6 @@ class _OverviewScreenState extends State<OverviewScreen> {
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        // Renombramos context a dialogContext
         backgroundColor: AppColors.cardBackground,
         title: const Text(
           'Editar Nombre',
@@ -86,12 +85,10 @@ class _OverviewScreenState extends State<OverviewScreen> {
           ElevatedButton(
             onPressed: () async {
               if (nameController.text.isNotEmpty) {
-                // Guardamos la referencia al Navigator antes del await
                 final navigator = Navigator.of(dialogContext);
 
                 await _userService.updateUserName(user.id, nameController.text);
 
-                // Verificamos si el diálogo aún está montado antes de cerrarlo
                 if (navigator.mounted) {
                   navigator.pop();
                 }
@@ -188,12 +185,17 @@ class _OverviewScreenState extends State<OverviewScreen> {
           isEditMode: _isEditMode,
           isVisible: config.showTileChat,
           onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const ChatScreen(),
-              ),
-            );
+            // CORRECCIÓN: Agregar parámetro requerido clientId
+            if (_currentUser != null) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ChatScreen(
+                    clientId: _currentUser!.id,
+                  ),
+                ),
+              );
+            }
           },
           onToggleVisibility: () => _toggleItem(id, config),
         );
@@ -231,14 +233,21 @@ class _OverviewScreenState extends State<OverviewScreen> {
       color: AppColors.accentMagenta,
       isEditMode: _isEditMode,
       isVisible: config.showShortcuts,
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => const BookingScreen()),
-      ),
+      onTap: () {
+        // CORRECCIÓN: Agregar parámetro requerido userId
+        if (_currentUser != null) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (context) => BookingScreen(userId: _currentUser!.id)),
+          );
+        }
+      },
       onToggleVisibility: () => _toggleItem('shortcuts', config),
     );
   }
 
+  // ... resto del archivo sin cambios significativos, solo asegúrate de cerrar la clase correctamente.
   bool _isIdVisible(String id, DashboardConfig config) {
     switch (id) {
       case 'calendar':
