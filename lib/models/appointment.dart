@@ -1,4 +1,5 @@
 // lib/models/appointment.dart
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class Appointment {
   final String id;
@@ -7,7 +8,9 @@ class Appointment {
   final String title;
   final String description;
   final DateTime date;
-  final String status; // 'pending', 'approved', 'rejected'
+  final String
+      status; // 'pending', 'approved', 'rejected', 'reschedule_proposal'
+  final DateTime? createdAt; // NUEVO CAMPO (Opcional para compatibilidad)
 
   Appointment({
     required this.id,
@@ -17,19 +20,34 @@ class Appointment {
     this.description = '',
     required this.date,
     required this.status,
+    this.createdAt, // Constructor actualizado
   });
 
   factory Appointment.fromJson(Map<String, dynamic> json) {
+    // Helper para convertir Timestamps de Firebase a DateTime
+    DateTime toDateTime(dynamic val) {
+      if (val is Timestamp) return val.toDate();
+      if (val is String) return DateTime.parse(val);
+      return DateTime.now();
+    }
+
+    // Helper seguro para createdAt (puede ser null en registros viejos)
+    DateTime? toDateTimeNullable(dynamic val) {
+      if (val == null) return null;
+      if (val is Timestamp) return val.toDate();
+      if (val is String) return DateTime.parse(val);
+      return null;
+    }
+
     return Appointment(
       id: json['id'] ?? '',
       clientId: json['clientId'] ?? '',
       clientName: json['clientName'] ?? 'Cliente',
-      title: json['title'] ?? 'Cita General',
+      title: json['title'] ?? 'Reunión',
       description: json['description'] ?? '',
-      date: json['date'] != null
-          ? DateTime.parse(json['date'])
-          : DateTime.now(),
+      date: toDateTime(json['date']),
       status: json['status'] ?? 'pending',
+      createdAt: toDateTimeNullable(json['createdAt']),
     );
   }
 
@@ -40,8 +58,10 @@ class Appointment {
       'clientName': clientName,
       'title': title,
       'description': description,
-      'date': date.toIso8601String(),
+      'date':
+          date.toIso8601String(), // Guardamos como ISO 8601 para consistencia
       'status': status,
+      'createdAt': createdAt?.toIso8601String(),
     };
   }
 }

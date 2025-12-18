@@ -32,6 +32,15 @@ class AppointmentService {
         );
   }
 
+  // NUEVO: Contar citas pendientes para el Badge del Admin
+  Stream<int> getPendingCountStream() {
+    return _db
+        .collection('appointments')
+        .where('status', isEqualTo: 'pending')
+        .snapshots()
+        .map((snapshot) => snapshot.docs.length);
+  }
+
   // Crear una nueva cita
   Future<void> createAppointment(Appointment appointment) async {
     await _db

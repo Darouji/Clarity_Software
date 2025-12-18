@@ -4,7 +4,7 @@ import 'package:clarity_software/models/appointment.dart';
 import 'package:clarity_software/services/appointment_service.dart';
 import 'package:clarity_software/theme/app_colors.dart';
 import 'package:clarity_software/widgets/global_menu.dart';
-import 'package:clarity_software/widgets/appointment_card.dart'; // Usamos el widget refactorizado
+import 'package:clarity_software/widgets/appointment_card.dart';
 import 'package:flutter/material.dart';
 
 class AdminAppointmentsScreen extends StatelessWidget {
@@ -26,15 +26,16 @@ class AdminAppointmentsScreen extends StatelessWidget {
               surface: AppColors.cardBackground,
               onSurface: Colors.white,
             ),
-            dialogBackgroundColor: AppColors.primaryBackground,
+            dialogTheme: const DialogThemeData(
+              backgroundColor: AppColors.primaryBackground,
+            ),
           ),
           child: child!,
         );
       },
     );
 
-    if (pickedDate != null) {
-      if (!context.mounted) return;
+    if (pickedDate != null && context.mounted) {
       final TimeOfDay? pickedTime = await showTimePicker(
         context: context,
         initialTime: TimeOfDay.fromDateTime(apt.date),
@@ -43,14 +44,11 @@ class AdminAppointmentsScreen extends StatelessWidget {
             data: Theme.of(context).copyWith(
               timePickerTheme: const TimePickerThemeData(
                 backgroundColor: AppColors.cardBackground,
-                hourMinuteTextColor: Colors.white,
-                dayPeriodTextColor: Colors.white70,
                 dialHandColor: AppColors.cyberBlue,
-                dialBackgroundColor: AppColors.primaryBackground,
+                hourMinuteTextColor: Colors.white,
               ),
               colorScheme: const ColorScheme.dark(
                 primary: AppColors.cyberBlue,
-                onPrimary: Colors.black,
                 surface: AppColors.cardBackground,
                 onSurface: Colors.white,
               ),
@@ -88,25 +86,24 @@ class AdminAppointmentsScreen extends StatelessWidget {
 
     return Scaffold(
       extendBodyBehindAppBar: true,
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(65),
-        child: ClipRRect(
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: const BackButton(color: Colors.white),
+        title: const Text(
+          'Gestión de Citas',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        actions: const [GlobalAppBarMenu(currentScreen: AppScreen.admin)],
+        // EFECTO CRISTAL NEGRO
+        flexibleSpace: ClipRRect(
           child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
-            child: AppBar(
-              backgroundColor: AppColors.appBarBackground.withValues(
-                alpha: 0.8,
-              ),
-              elevation: 0,
-              leading: const BackButton(color: Colors.white),
-              title: const Text(
-                'Gestión de Citas',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              actions: const [GlobalAppBarMenu(currentScreen: AppScreen.admin)],
+            filter: ImageFilter.blur(sigmaX: 15.0, sigmaY: 15.0),
+            child: Container(
+              color: Colors.black.withOpacity(0.3), // Negro con transparencia
             ),
           ),
         ),
@@ -148,7 +145,8 @@ class AdminAppointmentsScreen extends StatelessWidget {
           }
 
           return ListView.builder(
-            padding: const EdgeInsets.fromLTRB(16, 100, 16, 20),
+            // Padding ajustado para empezar bajo el banner
+            padding: const EdgeInsets.fromLTRB(16, 120, 16, 20),
             itemCount: appointments.length,
             itemBuilder: (context, index) {
               final apt = appointments[index];
