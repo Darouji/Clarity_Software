@@ -1,143 +1,140 @@
 // lib/widgets/latest_milestones_widget.dart
+import 'package:clarity_software/models/milestone.dart';
 import 'package:clarity_software/models/project.dart';
+import 'package:clarity_software/screens/client/global_timeline_screen.dart';
 import 'package:clarity_software/screens/client/project_details_screen.dart';
-import 'package:clarity_software/services/view_status_service.dart';
 import 'package:clarity_software/theme/app_colors.dart';
 import 'package:clarity_software/widgets/neon_card.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
 class LatestMilestonesWidget extends StatelessWidget {
   final List<Project> projects;
 
   const LatestMilestonesWidget({super.key, required this.projects});
 
-  void _navigateToMilestone(
-    BuildContext context,
-    Project project,
-    String milestoneTitle,
-  ) {
-    // Marcamos el proyecto como visto
-    final ViewStatusService viewService = ViewStatusService();
-    viewService.markAsViewed(project.id);
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ProjectDetailsScreen(
-          project: project,
-          highlightMilestoneTitle:
-              milestoneTitle, // Esto hará que el Kanban haga scroll
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    // 1. Obtener todos los hitos pendientes o recientes
-    final allMilestones = projects.expand((p) {
-      return p.milestones
-          .where(
-            (m) => m.status.toString() != 'MilestoneStatus.completed',
-          ) // Solo pendientes
-          .map((m) => MapEntry(m, p)); // Guardamos par (Hito, Proyecto)
-    }).toList();
+    final List<Map<String, dynamic>> allMilestones = [];
 
-    // 2. Ordenar por fecha de vencimiento (más urgente primero)
-    allMilestones.sort((a, b) => a.key.deadline.compareTo(b.key.deadline));
+    for (var project in projects) {
+      if (project.status != 'Finalizado') {
+        for (var milestone in project.milestones) {
+          if (milestone.status != MilestoneStatus.completed) {
+            allMilestones.add({
+              'milestone': milestone,
+              'project': project,
+              'date': milestone.deadline,
+            });
+          }
+        }
+      }
+    }
 
-    // 3. Tomar los primeros 5 (Lista expandible verticalmente)
-    final recent = allMilestones.take(5).toList();
-
-    if (recent.isEmpty) return const SizedBox();
+    allMilestones.sort(
+        (a, b) => (a['date'] as DateTime).compareTo(b['date'] as DateTime));
+    final displayList = allMilestones.take(2).toList();
 
     return NeonCard(
-      glowColor: AppColors.accentOrange.withValues(alpha: 0.3),
+      glowColor: AppColors.accentPurple,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Icon(Icons.flag, color: AppColors.accentOrange, size: 20),
-              SizedBox(width: 8),
-              Text(
-                'Últimos Hitos',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
+              Text('Últimos Hitos',
+                  style: TextStyle(
+                      color: AppColors.accentPurple,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16)),
+              Icon(Icons.flag_outlined,
+                  color: AppColors.accentPurple, size: 20),
             ],
           ),
-          const SizedBox(height: 16),
-          ...recent.map((entry) {
-            final m = entry.key;
-            final project = entry.value;
-            final daysLeft = m.deadline.difference(DateTime.now()).inDays;
+          const SizedBox(height: 12),
+          Expanded(
+            child: displayList.isEmpty
+                ? const Align(
+                    alignment: Alignment.topLeft,
+                    child: Text('No tienes hitos pendientes.',
+                        style: TextStyle(color: Colors.white38, fontSize: 13)))
+                : ListView.separated(
+                    padding: EdgeInsets.zero,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: displayList.length,
+                    separatorBuilder: (_, __) =>
+                        const Divider(color: Colors.white10, height: 16),
+                    itemBuilder: (context, index) {
+                      final item = displayList[index];
+                      final Milestone m = item['milestone'];
+                      final Project p = item['project'];
 
-            Color timeColor = Colors.white70;
-            String timeText =
-                '${DateFormat('dd/MM').format(m.deadline)} ($daysLeft días)';
-
-            if (daysLeft < 0) {
-              timeColor = AppColors.accentRed;
-              timeText = 'Vencido hace ${daysLeft.abs()} días';
-            } else if (daysLeft <= 3) {
-              timeColor = AppColors.accentOrange;
-              timeText = 'Vence en $daysLeft días';
-            }
-
-            return InkWell(
-              onTap: () => _navigateToMilestone(context, project, m.title),
-              child: Padding(
-                padding: const EdgeInsets.only(bottom: 12.0, top: 4.0),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 4,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: timeColor,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            m.title,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 15,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          Text(
-                            '${project.name} • $timeText',
-                            style: TextStyle(
-                              color: timeColor.withValues(alpha: 0.8),
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const Icon(
-                      Icons.chevron_right,
-                      color: Colors.white24,
-                      size: 18,
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }),
+                      return InkWell(
+                        onTap: () {
+                          // AQUÍ ESTÁ LA CLAVE: Enviamos el título del hito para que se abra solo
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) => ProjectDetailsScreen(
+                                    project: p,
+                                    highlightMilestoneTitle: m.title)),
+                          );
+                        },
+                        child: Row(
+                          children: [
+                            Icon(
+                                m.status == MilestoneStatus.completed
+                                    ? Icons.check_circle
+                                    : Icons.radio_button_unchecked,
+                                color: m.status == MilestoneStatus.completed
+                                    ? AppColors.accentGreen
+                                    : Colors.white54,
+                                size: 16),
+                            const SizedBox(width: 10),
+                            Expanded(
+                                child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                  Text(m.title,
+                                      style: const TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis),
+                                  Text(p.name,
+                                      style: const TextStyle(
+                                          color: Colors.white38, fontSize: 11),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis)
+                                ])),
+                            Text('${m.deadline.day}/${m.deadline.month}',
+                                style: const TextStyle(
+                                    color: AppColors.accentPurple,
+                                    fontSize: 12)),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+          ),
+          SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                  onPressed: () {
+                    Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) =>
+                                const GlobalTimelineScreen()));
+                  },
+                  style: OutlinedButton.styleFrom(
+                      side: BorderSide(
+                          color: AppColors.accentPurple.withValues(alpha: 0.3)),
+                      foregroundColor: AppColors.accentPurple,
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      visualDensity: VisualDensity.compact),
+                  child: const Text('Ver Todos los Hitos'))),
         ],
       ),
     );

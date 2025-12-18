@@ -75,4 +75,6 @@ class UserService {
   Future<void> updateUserName(String userId, String newName) async {
     await _db.collection(_collection).doc(userId).update({'name': newName});
   }
+
+  Future<Object?>? getUserName(String currentUserId) async {}
 }

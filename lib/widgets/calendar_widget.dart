@@ -1,169 +1,171 @@
 // lib/widgets/calendar_widget.dart
+import 'package:clarity_software/models/appointment.dart';
 import 'package:clarity_software/models/project.dart';
+import 'package:clarity_software/screens/client/booking_screen.dart';
+import 'package:clarity_software/services/appointment_service.dart';
 import 'package:clarity_software/theme/app_colors.dart';
 import 'package:clarity_software/widgets/neon_card.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 class CalendarWidget extends StatelessWidget {
   final List<Project> projects;
 
   const CalendarWidget({super.key, required this.projects});
 
-  Future<void> _openGoogleCalendar() async {
-    final Uri url = Uri.parse('https://calendar.google.com/');
-    if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
-      debugPrint('No se pudo abrir el calendario');
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    // 1. Aplanar la lista: Obtener todos los hitos pendientes de todos los proyectos
-    final allMilestones = projects.expand((p) {
-      return p.milestones
-          .where(
-            (m) =>
-                // Filtramos solo los que no están completados y tienen fecha futura o reciente
-                m.status.toString() != 'MilestoneStatus.completed',
-          )
-          .map(
-            (m) => MapEntry(m, p.name),
-          ); // Guardamos par (Hito, NombreProyecto)
-    }).toList();
-
-    // 2. Ordenar por fecha de vencimiento (deadline)
-    allMilestones.sort((a, b) => a.key.deadline.compareTo(b.key.deadline));
-
-    // 3. Tomar solo los próximos 3 para no saturar
-    final upcoming = allMilestones.take(3).toList();
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    final AppointmentService appointmentService = AppointmentService();
 
     return NeonCard(
-      glowColor: AppColors.accentMagenta.withValues(alpha: 0.4),
+      glowColor: AppColors.cyberBlue,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          const Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Row(
-                children: [
-                  Icon(
-                    Icons.calendar_today,
-                    color: AppColors.accentMagenta,
-                    size: 20,
-                  ),
-                  SizedBox(width: 8),
-                  Text(
-                    'Agenda Próxima',
-                    style: TextStyle(
-                      fontSize: 18,
+              Text('Agenda Próxima',
+                  style: TextStyle(
+                      color: AppColors.cyberBlue,
                       fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                ],
-              ),
-              IconButton(
-                icon: const Icon(
-                  Icons.open_in_new,
-                  color: Colors.white54,
-                  size: 18,
-                ),
-                onPressed: _openGoogleCalendar,
-                tooltip: 'Abrir Google Calendar',
-              ),
+                      fontSize: 16)),
+              Icon(Icons.calendar_month, color: AppColors.cyberBlue, size: 20),
             ],
           ),
-          const SizedBox(height: 16),
-          if (upcoming.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 10),
-              child: Text(
-                'No hay eventos próximos.',
-                style: TextStyle(color: Colors.white54),
-              ),
-            )
-          else
-            ...upcoming.map((entry) {
-              final milestone = entry.key;
-              final projectName = entry.value;
-              final dateStr = DateFormat('dd MMM').format(milestone.deadline);
+          const SizedBox(height: 12),
+          Expanded(
+            child: userId == null
+                ? const LinearProgressIndicator(color: AppColors.cyberBlue)
+                : StreamBuilder<List<Appointment>>(
+                    stream:
+                        appointmentService.getClientAppointmentsStream(userId),
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData)
+                        return const Text('Cargando...',
+                            style: TextStyle(color: Colors.white54));
+                      final now = DateTime.now();
+                      final futureAppointments = snapshot.data!
+                          .where((a) => a.date
+                              .isAfter(now.subtract(const Duration(hours: 2))))
+                          .take(2)
+                          .toList();
 
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 12.0),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.accentMagenta.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(
-                          color: AppColors.accentMagenta.withValues(alpha: 0.5),
-                        ),
-                      ),
-                      child: Text(
-                        dateStr,
-                        style: const TextStyle(
-                          color: AppColors.accentMagenta,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            milestone.title,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 14,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          Text(
-                            projectName,
-                            style: const TextStyle(
-                              color: Colors.white54,
-                              fontSize: 11,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }),
+                      if (futureAppointments.isEmpty) {
+                        return const Align(
+                            alignment: Alignment.topLeft,
+                            child: Text('No tienes reuniones programadas.',
+                                style: TextStyle(
+                                    color: Colors.white38, fontSize: 13)));
+                      }
 
-          if (upcoming.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 8.0),
-              child: SizedBox(
-                width: double.infinity,
-                child: TextButton(
-                  onPressed: _openGoogleCalendar,
-                  style: TextButton.styleFrom(
-                    foregroundColor: AppColors.accentMagenta,
+                      return ListView.separated(
+                        padding: EdgeInsets.zero,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: futureAppointments.length,
+                        separatorBuilder: (_, __) =>
+                            const Divider(color: Colors.white10, height: 16),
+                        itemBuilder: (context, index) {
+                          final apt = futureAppointments[index];
+                          // WRAP CON INKWELL PARA NAVEGACIÓN INDIVIDUAL
+                          return InkWell(
+                            onTap: () {
+                              Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (context) =>
+                                          BookingScreen(userId: userId)));
+                            },
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 6),
+                                  decoration: BoxDecoration(
+                                      color: AppColors.cyberBlue
+                                          .withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                          color: AppColors.cyberBlue
+                                              .withValues(alpha: 0.3))),
+                                  child: Column(children: [
+                                    Text('${apt.date.day}',
+                                        style: const TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 16)),
+                                    Text(_getMonth(apt.date.month),
+                                        style: const TextStyle(
+                                            color: AppColors.cyberBlue,
+                                            fontSize: 10))
+                                  ]),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                    child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                      Text(apt.title,
+                                          style: const TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.bold),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                          '${apt.date.hour}:${apt.date.minute.toString().padLeft(2, '0')} hrs',
+                                          style: const TextStyle(
+                                              color: Colors.white54,
+                                              fontSize: 12))
+                                    ])),
+                              ],
+                            ),
+                          );
+                        },
+                      );
+                    },
                   ),
-                  child: const Text('VER CALENDARIO COMPLETO'),
-                ),
-              ),
-            ),
+          ),
+          SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                  onPressed: () {
+                    if (userId != null)
+                      Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) =>
+                                  BookingScreen(userId: userId)));
+                  },
+                  style: OutlinedButton.styleFrom(
+                      side: BorderSide(
+                          color: AppColors.cyberBlue.withValues(alpha: 0.3)),
+                      foregroundColor: AppColors.cyberBlue,
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      visualDensity: VisualDensity.compact),
+                  child: const Text('Ver Agenda Completa'))),
         ],
       ),
     );
+  }
+
+  String _getMonth(int month) {
+    const months = [
+      'ENE',
+      'FEB',
+      'MAR',
+      'ABR',
+      'MAY',
+      'JUN',
+      'JUL',
+      'AGO',
+      'SEP',
+      'OCT',
+      'NOV',
+      'DIC'
+    ];
+    return months[month - 1];
   }
 }
