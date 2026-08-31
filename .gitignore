@@ -62,3 +62,13 @@ lib/firebase_options.dart
 
 # Mac specific
 .DS_Store
+# Local credentials and Firebase tooling
+.env
+.env.*
+*.pem
+*.p12
+*.pfx
+*service-account*.json
+*serviceAccount*.json
+.firebase/
+firebase-debug.log

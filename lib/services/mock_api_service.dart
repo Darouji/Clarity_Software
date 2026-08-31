@@ -17,19 +17,19 @@ class MockApiService {
     ClientUser(
       id: '1',
       name: 'Empresa Demo S.A.',
-      email: 'contacto@demo.com',
+      email: 'contacto@example.invalid',
       role: 'client',
     ),
     ClientUser(
       id: '2',
       name: 'StartUp Innovadora',
-      email: 'ceo@startup.com',
+      email: 'ceo@example.invalid',
       role: 'client',
     ),
     ClientUser(
       id: 'admin_1',
       name: 'Administrador Clarity',
-      email: 'admin@clarity.com',
+      email: 'admin@example.invalid',
       role: 'admin',
     ),
   ];
