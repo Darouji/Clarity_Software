@@ -4,6 +4,8 @@
 
 Aplicación académica construida con Flutter, Dart y Firebase para facilitar el seguimiento de proyectos entre administradores y clientes. Reúne avances, hitos, conversación y documentación en una misma experiencia.
 
+[Ver el caso de Clarity en el portafolio](https://darouji.github.io/#clarity)
+
 **Estado:** prototipo académico. El código incluye funcionalidades conectadas a Firebase y áreas todavía incompletas. No se presenta como una aplicación validada en producción ni como un servicio de firma electrónica certificada.
 
 ## El problema
