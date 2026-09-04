@@ -12,10 +12,10 @@ dependencies:
 
   # --- Dependencias Principales (FIREBASE ACTUALIZADO) ---
   # Actualizamos a las versiones que soportan compileSdk 36 y Pigeon
-  firebase_core: ^3.6.0
-  firebase_auth: ^5.3.1
-  cloud_firestore: ^5.4.4
-  firebase_storage: ^12.3.0
+  firebase_core: ^4.14.0
+  firebase_auth: ^6.6.1
+  cloud_firestore: ^6.9.0
+  firebase_storage: ^13.5.0
   
   # --- Autenticación ---
   google_sign_in: ^6.2.1
