@@ -21,23 +21,23 @@ dependencies:
   google_sign_in: ^6.2.1
   
   # --- Utilidades ---
-  intl: ^0.19.0
+  intl: ^0.20.3
   provider: ^6.1.1
-  path_provider: ^2.1.4
+  path_provider: ^2.1.6
   path: ^1.9.0
   
   # --- UI y Multimedia ---
-  image_picker: ^1.1.2
+  image_picker: ^1.2.4
   
   # MANTENEMOS FILE PICKER MODERNO
   file_picker: ^8.1.4 
   
   # Plugin vital para evitar conflictos en Android 34/36
-  flutter_plugin_android_lifecycle: ^2.0.24 
+  flutter_plugin_android_lifecycle: ^2.0.35 
 
   font_awesome_flutter: ^10.7.0
   signature: ^5.4.1
-  url_launcher: ^6.3.0
+  url_launcher: ^6.3.3
   
   cupertino_icons: ^1.0.8
 
